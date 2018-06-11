@@ -17,11 +17,15 @@ git commit -m "$msg"
 
 # Push source and build repos.
 git push origin master
+echo "hugo blog has commited"
 
 rm -rf ../maodanp.github.io/*
+cp -rf ../public_git/* ./maodanp.github.io
 cp -rf ./public/* ../maodanp.github.io
 cd ../maodanp.github.io/
 
+git add -A
 git commit -m "$msg"
 git push origin master
+echo "public files has commited"
 
