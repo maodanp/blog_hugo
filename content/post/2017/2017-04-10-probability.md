@@ -270,7 +270,7 @@ $$`
 
 * 大数定律
 
-设随机变量$X_1, X_2,\ldots, X_n,\ldots$相互独立，并且具有相同的期望$\mu$和方差$\sigma^2$。取前n个随机变量的平均$Y_n=\frac{1}{n}\sum_{i=1}^nX_i$，则对于任意正数$\epsilon$,有:
+设随机变量$X_1, X_2,\ldots, X_n,\ldots$相互独立，并且具有相同的期望$\mu$和方差$\sigma^2$。取前n个随机变量的平均`$Y_n=\frac{1}{n}\sum_{i=1}^nX_i$`，则对于任意正数$\epsilon$,有:
 `$$
 lim_{n\to\infty}P\{|Y_n-u| \lt \epsilon\} = 1
 $$`
@@ -278,7 +278,7 @@ $$`
 
 ### 中心极限定理
 
-设随机变量$X_1, X_2,\ldots, X_n,\ldots$互相独立，服从同一分布，并且具有相同的期望$\mu$和方差$sigma^2$，则随机变量$Y_n=\frac{1}{n}\sum_{i=1}^nX_i$:
+设随机变量$X_1, X_2,\ldots, X_n,\ldots$互相独立，服从同一分布，并且具有相同的期望$\mu$和方差$\sigma^2$，则随机变量`$Y_n=\frac{1}{n}\sum_{i=1}^nX_i$`:
 `$$
 Y_n = \frac{\sum_{i=1}^nX_i-n\mu}{\sqrt{n}\sigma}
 $$`
