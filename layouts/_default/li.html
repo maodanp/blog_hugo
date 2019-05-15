@@ -1,0 +1,15 @@
+
+<article class="post li">
+    <header>
+        <div class="post-date">
+            {{ .Date.Format .Site.Params.DateForm }}
+        </div>
+        <h2 class="post-title">
+            <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        {{ .Summary }}
+    </div>
+    </article>
+<hr>

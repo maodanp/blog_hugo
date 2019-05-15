@@ -1,0 +1,42 @@
+baseurl: "https://maodanp.github.io/"
+languageCode: "zh-CN"
+title: "Danping's blog"
+copyright: "Copyright (c) 2018. All rights reserved."
+MetaDataFormat: "yaml"
+builddrafts: false
+canonifyurls: false
+contentdir: "content"
+layoutdir: "layouts"
+publishdir: "docs"
+
+permalinks:
+    posts: /:year/:month/:day/:slug/
+taxonomies:
+    tag: "tags"
+    category: "categories"
+params:
+    CopyrightHTML: "Copyright &#xA9; 2018. All Rights Reserved."
+    GitHubUser: "maodanp"
+    SidebarRecentLimit: 8
+    DateForm: "2006年01月02日"
+    # Description: "一场雨，一场梦"
+    Categories:
+        - "技术志"
+        - "工具箱"
+        - "杂谈集"
+        - "关于"
+    ShowRelatedPost: true
+menu:
+    main:
+        - Name: "归档"
+          Pre: "<i class='fa fa-heart'></i>"
+          Weight: -110
+          Identifier: "post"
+          URL: "/post/"
+        - Name: "关于"
+          Pre: "<i class='fa fa-road'></i>"
+          Identifier: "about"
+          Weight: -100
+          URL: "/about/"
+author:
+    name: "fatedier"

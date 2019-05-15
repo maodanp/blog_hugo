@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>linux on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/linux/</link>
+    <description>Recent content in linux on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Sun, 04 Sep 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/linux/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>liunx性能检测常用命令(二)</title>
+      <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
+      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</guid>
+      <description>&lt;p&gt;&lt;a href=&#34;https://maodanp.github.io/2016/09/03/linux-performace-cmd-one&#34;&gt;前一篇&lt;/a&gt;讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>liunx性能检测常用命令(一)</title>
+      <link>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</link>
+      <pubDate>Sat, 03 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</guid>
+      <description>&lt;p&gt;作为后端研发人员，了解Linux服务器的性能状态是非常必要的，Linux设计的性能检测命令也很多，如何在最短时间内定位到影响服务器性能的瓶颈，这也是每个研发人员的必备的技能之一。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Linux防火墙</title>
+      <link>https://maodanp.github.io/2015/07/07/linux-iptables/</link>
+      <pubDate>Tue, 07 Jul 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/07/07/linux-iptables/</guid>
+      <description>&lt;p&gt;在工作中常常涉及到防火墙的概念，基本网络不通或者服务无法连接首先就会想到是否是防火墙的原因。当然这里所说的防火墙是Linux系统内核继承的IP信息包过滤系统Netfiter/iptables。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

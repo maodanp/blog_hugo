@@ -72,11 +72,11 @@ Go的域名解析就是通过读取`/etc/resolve.conf`的dns server, 然后通�
 
 开启`allow-query-cache`， dig了一下，发现返回的错误码是NOERROR，且返回一串root dns server的信息； 而关闭该字段，则返回REFUSE. 这就是关键了，该字段是起缓存作用。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-28-golang-resolve-1.png)
+![](../../../../pic/2016/2016-04-28-golang-resolve-1.png)
 
 开启`allow-query-cache`
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-28-golang-resolve-2.png)
+![](../../../../pic/2016/2016-04-28-golang-resolve-2.png)
 
 不开启`allow-query-cache`
 

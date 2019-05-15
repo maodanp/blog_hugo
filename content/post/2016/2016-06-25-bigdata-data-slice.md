@@ -31,7 +31,7 @@ url: "/2016/06/25/bigdata-data-slice"
 * 第一级映射是**key-partition**映射，多对一映射关系，即多条记录被映射到同一个数据分片中
 * 第二级映射是**partition-machine**映射，多对一映射关系，即多个数据分片被映射到同一个物理机中
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-06-25-bigdata-data-slice-1.png)
+![](../../../../pic/2016/2016-06-25-bigdata-data-slice-1.png)
 
 **哈希分片**和**范围分片**都可以映射到这个抽象模型中。***哈希分片***，主要是通过哈希函数来建立**key-partition**映射关系，只能根据某个记录的主键获得记录内容，但是哈希方法需要记录的元信息非常的简单，只需要知道哈希函数的计算方式就行。***范围/顺序分片***，该分片方式在分布式表格系统中比较常见，能够根据指定的主键范围一次性读取多条满足条件的记录。
 
@@ -65,7 +65,7 @@ url: "/2016/06/25/bigdata-data-slice"
 2. 使用同样的方法求出待存储的主键hash值，也将其配置到这个圆环上；
 3. 数据的路由，将数据存储到找到合适的服务器节点上（下面的路由问题）。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-06-25-bigdata-data-slice-2.png)
+![](../../../../pic/2016/2016-06-25-bigdata-data-slice-2.png)
 
 ##### 3.3.1 路由问题
 
@@ -131,7 +131,7 @@ func (c *Consistent) Get(key string) string
 
 对照上面的结构，大致的结构图如下：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-06-25-bigdata-data-slice-3.png)
+![](../../../../pic/2016/2016-06-25-bigdata-data-slice-3.png)
 
 当然，以上的实现是对于一致性Hash的基本操作，具体的业务还需要考虑数据的存储，迁移，备份等等操作。
 

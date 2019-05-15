@@ -1,0 +1,87 @@
+{{ partial "default_head.html" . }}
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    {{ .Date.Format .Site.Params.DateForm }} 
+                </div>
+                <h1 class="post-title">{{ .Title }}</h1>
+            </header>
+
+            <div class="post-content">
+                {{ .Content }}
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="{{ .Permalink }}">{{ .Permalink }}</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                {{ $baseurl := .Site.BaseURL }}
+                <ul class="list-inline post-tags">
+                    {{ range .Params.tags }}
+                    <li>
+                        <a href="/tags/{{ . | urlize }}/">
+                            <i class="fa fa-tags"></i>
+                            {{ . }}
+                        </a>
+                    </li>
+                    {{ end }}
+                </ul>
+
+                {{ if .Site.Params.ShowRelatedPost }}
+                <!-- Related post. -->
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels">
+                    {{- $page_link := .Permalink -}}
+                    {{- $tags := .Params.tags -}}
+                    {{- range .Site.Pages -}}
+                        {{- $page := . -}}
+                        {{- $has_common_tags := intersect $tags .Params.tags | len | lt 0 -}}
+                        {{- if and $has_common_tags (ne $page_link $page.Permalink) -}}
+                            <li id="li-rels"><a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;({{ .Date.Format .Site.Params.DateForm }})</span></li>
+                        {{- end -}}
+                    {{- end -}}
+                </ul>
+                {{/* 通过 js 操作只显示最前面的几篇相关文章 */}}
+            </aside>
+                {{ end }}
+            <!-- Pagination. -->
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        {{ if .NextPage }}
+                        <li class="previous"><a href="{{ .NextPage.RelPermalink }}"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        {{ else }}
+                        <li class="previous disabled"><a href="#"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        {{ end }}
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        {{ if .PrevPage }}
+                        <li class="next"><a href="{{ .PrevPage.RelPermalink }}">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        {{ else }}
+                        <li class="next disabled"><a href="#">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        {{ end }}
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        {{ partial "sidebar_single.html" . }}
+    </div>
+</div>
+
+{{ partial "default_foot.html" . }}

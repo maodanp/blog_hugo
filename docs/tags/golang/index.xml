@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>golang on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/golang/</link>
+    <description>Recent content in golang on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Sun, 11 Sep 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/golang/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>创建基于proxy的HTTP(s)连接</title>
+      <link>https://maodanp.github.io/2016/09/11/golang-https-proxy/</link>
+      <pubDate>Sun, 11 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/11/golang-https-proxy/</guid>
+      <description>&lt;p&gt;最近遇到了几次HTTP(s)如何通过代理访问内网的问题，本篇讲述基于proxy发送/接收HTTP(s)请求的客户端实现方法。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang中context包</title>
+      <link>https://maodanp.github.io/2016/09/04/go/</link>
+      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/04/go/</guid>
+      <description>&lt;p&gt;在阅读一些标准库(net、net/http、os/exec)时，经常会遇到context包，大致知道是当做关闭事件触发用的。阅读完GoTeam的文章&lt;a href=&#34;https://blog.golang.org/context&#34;&gt;Go Concurrency Patterns: Context&lt;/a&gt;，才更深刻的了解了其设计意图。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Golang — 面向对象语言(方法、接口、匿名组合)</title>
+      <link>https://maodanp.github.io/2016/04/30/golang-interface/</link>
+      <pubDate>Sat, 30 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/30/golang-interface/</guid>
+      <description>&lt;p&gt;初学Golang时，一直困惑其中的&lt;code&gt;struct类型&lt;/code&gt;是否等同于面向对象中的object, &lt;code&gt;interface&lt;/code&gt;是否等同于多态。下面来好好扒一扒Golang与面向对象的关系。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang中域名解析问题</title>
+      <link>https://maodanp.github.io/2016/04/28/golang-resolve/</link>
+      <pubDate>Thu, 28 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/28/golang-resolve/</guid>
+      <description>&lt;p&gt;在近期的Golang项目中遇到过类似这样的报错信息：&lt;code&gt;lookup www.baidu.com on 10.10.100.1:53 no such host&lt;/code&gt;. 本篇就来说说golang中域名解析遇到的问题。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang错误处理(二)</title>
+      <link>https://maodanp.github.io/2015/04/15/error-handling-in-go-part-ii/</link>
+      <pubDate>Fri, 15 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/04/15/error-handling-in-go-part-ii/</guid>
+      <description>&lt;p&gt;该篇作为系列(二)，自然要更深入一层。本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/11/error-handling-in-go-part-ii.html&#34;&gt;Error Handling In Go, Part II&lt;/a&gt;，作者在该篇中将教我们怎么写自定义error接口，并且根据error如何识别具体的错误。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang错误处理(一)</title>
+      <link>https://maodanp.github.io/2015/04/12/error-handling-in-go-part-i/</link>
+      <pubDate>Tue, 12 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/04/12/error-handling-in-go-part-i/</guid>
+      <description>&lt;p&gt;Golang中Error作为返回值是很常见的，几乎每个函数返回值都有error的interface。本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/10/error-handling-in-go-part-i.html&#34;&gt;Error Handling In Go, Part I&lt;/a&gt;，作者在该篇中对error接口的创建、使用等做了详细描述。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang参数传递</title>
+      <link>https://maodanp.github.io/2016/03/15/using-pointers-in-go/</link>
+      <pubDate>Tue, 15 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/03/15/using-pointers-in-go/</guid>
+      <description>&lt;p&gt;以前在C/C++中，都知道传参时何时传值、指针、引用。那在Golang中的规则又是怎样的呢？对于参数传递是否有统一的规范呢？本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/12/using-pointers-in-go.html&#34;&gt;Using Pointers In *Go&lt;/a&gt;，作者总结出的方法一定让你受益匪浅。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>理解golang中的切片</title>
+      <link>https://maodanp.github.io/2016/03/01/understanding-slices-in-go-programming/</link>
+      <pubDate>Tue, 01 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/03/01/understanding-slices-in-go-programming/</guid>
+      <description>&lt;p&gt;Golang的初学者有时会被slice所困扰，不理解其内部原理，使用起来总是担心是否有复制的开销。 本文翻译自&lt;a href=&#34;https://www.goinggo.net/2013/08/understanding-slices-in-go-programming.html&#34;&gt;Understanding Slices in Go Programming&lt;/a&gt;，作者对其内部原理作了深入分析。相信读完将会有不一样的感受。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

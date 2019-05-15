@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本文总结了关于非阻塞connect的处理细节，实现细节，作简要总结。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="非阻塞connect - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    非阻塞connect
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2015年05月13日 
+                </div>
+                <h1 class="post-title">非阻塞connect</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本文总结了关于非阻塞connect的处理细节，实现细节，作简要总结。</p>
+
+<h3 id="非阻塞connect的用途">非阻塞connect的用途</h3>
+
+<p>非阻塞的TCP套接字上调用connect时，connect将立即返回一个EINPROCESS错误，不过已经发起的TCP三路握手继续进行。接着用select检测这个连接或成功或失败的已建立条件。非阻塞connect有三个用途：</p>
+
+<ol>
+<li>我们可以把三路握手的时间叠加到其他处理上。完成一个connect要花费一个RTT时间，该时间波动范围很大，从几毫秒到几秒。这段时间内也许我们可以执行其他我们想要执行的工作。</li>
+<li>可以使用这个技术同时建立多个连接，这个用途已经随着web浏览器变得流行起来。</li>
+<li>由于我们用select等待连接的完成，因此可以给select设置一个时间限制，从而缩短connect的超时时间。</li>
+</ol>
+
+<h3 id="非阻塞connect的处理细节">非阻塞connect的处理细节</h3>
+
+<ol>
+<li>即使套接字是非阻塞的，如果连接服务器在同一台主机上，在调用connect时连接通常会立刻建立，我们必须处理这种情况。</li>
+<li>源自Berkeley的实现有两条与select和非阻塞I/O相关的规则: 当连接成功建立时，描述字变成可写; 当连接成功出错时，描述字变成即可读又可写</li>
+</ol>
+
+<h3 id="套接字可读-可写的条件">套接字可读/可写的条件</h3>
+
+<p>关于这里的套接字的可读可写，在《Unix网络编程（卷1）》第6章有这样的描述：</p>
+
+<p>对于select返回套接字&rdquo;准备好 可读/可写&rdquo; 的明确条件：</p>
+
+<ol>
+<li><p>下列四个条件中任何一个满足时，套接字准备好读：</p>
+
+<p>a.  套接字缓冲区中的数据字节数大于等于套接字接收缓冲区中低潮限度的当前值。（我们可以用套接字选项SO_RCVLOWAT来设置此低潮限度， TCP/UDP默认值为1）。</p>
+
+<p>b.  连接的读这一半关闭（也就是说接收了FIN端的TCP连接），对这样的套接字的读操作将不阻塞且返回0（即为文件结束符）。</p>
+
+<p>c.   套接字是一个侦听套接字，且已经完成的连接数大于0。这样的监听套接字在accept上一般不会阻塞。</p>
+
+<p>d.  有一个套接字错误待处理。对这样的套接字的读操作将不会阻塞且返回一个错误值（-1）。errno设置成明确的错误条件。</p></li>
+
+<li><p>下列四个条件中任何一个满足时，套接字准备好写：</p>
+
+<p>a.  套接字发送缓冲区中的可用空间字节数大于等于套接字发送缓冲区低潮限度的当前值（ TCP/UDP默认值为2048）。</p>
+
+<p>b.  该连接的写半部关闭，对这样的套接字的写操作将产生SIGPIPE信号（参见上篇《服务器关闭与TCP异常》）。</p>
+
+<p>c.  使用非阻塞connect的套接字已经建立连接，或者connect已经以失败告终。</p>
+
+<p>d.  其上有一个套接字错误待处理。对这样的套接字的写操作将不阻塞并返回-1，同时把errno设置为确切的错误条件。</p></li>
+</ol>
+
+<p>注意：当某个套接字上发生错误时，它将由select标记为既可读又可写。</p>
+
+<h3 id="代码分析">代码分析</h3>
+
+<p>以下为常用的非阻塞connect的实现模块（摘录自《Unix网络编程》 Unit16）</p>
+
+<pre><code>int connect_nonb(int sockfd, const SA *saptr, socklen_t salen, int nsec) {
+　　int flags, n, error;
+　　socklen_t len;
+　　fd_set rset, wset;
+　　struct timeval tval;
+　　/* 获取当前socket的属性， 并设置 noblocking 属性 */
+　　flags = fcntl(sockfd, F_GETFL, 0);
+　　fcntl(sockfd, F_SETFL, flags | O_NOBLOCK);
+　　errno = 0;
+     /*=========================================
+      期望获得的错误(EINPROGRESS):
+           表示连接建立已经启动但尚未完成
+      其他错误则返回给本函数的调用者
+     =========================================*/
+　　if ( (n = connect(sockfd, saptr, salen)) &lt; 0)
+　　if (errno != EINPROGRESS)  
+　　return (-1);
+
+　　/* 这里可以做任何其它的操作*/
+
+　　if (n == 0)
+　　goto done;       /* 服务器与客户端为同一个主机, 会返回 0*/
+　　FD_ZERO(&amp;rset);
+　　FD_SET(sockfd, &amp;rset);
+　　wset = rset;  
+        tval.tv_sec = nsec;
+        tval.tv_usec = 0;
+     /*=========================================
+     如果nsec 为0，将使用缺省的超时时间，即其结构指针为 NULL
+     如果select的返回值为0，则表示超时:
+        关闭套接字
+        返回ETIMEOUT错误给调用者
+    =========================================*/
+　　if ((n = select(sockfd+1, &amp;rset, &amp;west, NULL,nsec ?tval:NULL)) == 0)
+    {
+　　  close(sockfd);
+　　  errno = ETIMEOUT;
+　　  return (-1);
+　  }
+    /*====================================================
+     检查描述符的可读、可写
+     需要getsockopt检查套接字上是否存在待处理错误，判断连接建立是否成功了:
+        因为套接字上发生错误时，它将由select标记为既可读又可写
+     这里getsockopt存在移植性问题(以下代码兼容两种情况)：
+        Berkeley实现, getsockopt返回0，error中返回待处理错误
+        Solaris中getsockopt返回-1，error中返回待处理错误
+    ====================================================*/
+　　if(FD_ISSET(sockfd, &amp;rset) || FD_ISSET(sockfd, &amp;west))
+        {
+
+　　  len = sizeof(error);
+　　  if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &amp;error, &amp;len) &lt; 0)
+　　  return (-1);
+　   }
+　　else err_quit(“select error: sockfd not set”);
+　　done:
+　　fcntl(sockfd, F_SETFL, flags);  /* 恢复socket 属性*/
+　　if (error)
+  {
+　　close(sockfd);
+　　errno = error;
+　　return (-1);
+　}
+　　Return (0);
+}
+</code></pre>
+
+<h3 id="移植问题">移植问题</h3>
+
+<p>首先，调用select之前，有可能连接已经建立并由来自对端的数据到达。该情况下，即使套接字上不发生错误，套接字也是既可读又可写，这和连接简历失败情况下套接字的读写条件一样。</p>
+
+<p>除了getsockopt调用，还有其他方式可以判断连接建立是否成功么？UNIX网络编程提供的集中方案：</p>
+
+<ol>
+<li>调用getpeername代替 getsockopt。如果getpeername以ENOTCONN错误失败返回，那么连接建立已经失败，我们必须接着以SO_ERROR调用getsockopt取得套接字上待处理的错误；</li>
+<li>调用read,读取长度为0字节的数据.如果read调用失败,则表示连接建立失败,而且read返回的errno指明了连接失败的原因.如果连接建立成功,read应该返回0；</li>
+<li>再调用一次connect.它应该失败,如果错误errno是EISCONN,就表示套接口已经建立,而且第一次连接是成功的;否则,连接就是失败的。</li>
+</ol>
+
+<h3 id="参考文章">参考文章</h3>
+
+<p>UNIX网络编程卷1： Unit16 非阻塞connect</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2015/06/18/network_connect/">https://maodanp.github.io/2015/06/18/network_connect/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/network/">
+                            <i class="fa fa-tags"></i>
+                            network
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2015/05/20/introduce-of-setopt/">setopt简介</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年05月20日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2015/05/20/introduce-of-setopt/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2015/04/17/introduce-of-markdown/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#非阻塞connect的用途">非阻塞connect的用途</a></li>
+<li><a href="#非阻塞connect的处理细节">非阻塞connect的处理细节</a></li>
+<li><a href="#套接字可读-可写的条件">套接字可读/可写的条件</a></li>
+<li><a href="#代码分析">代码分析</a></li>
+<li><a href="#移植问题">移植问题</a></li>
+<li><a href="#参考文章">参考文章</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

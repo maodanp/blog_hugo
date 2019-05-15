@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本篇将通过apache的配置项，结合实际应用，直观感受这些配置参数对吞吐量的影响。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="apache配置与性能 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    apache配置与性能
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年04月25日 
+                </div>
+                <h1 class="post-title">apache配置与性能</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本篇将通过apache的配置项，结合实际应用，直观感受这些配置参数对吞吐量的影响。</p>
+
+<h3 id="系统调用">系统调用</h3>
+
+<p>进程有两种运行模式：用户态和内核态，进程在这两种模式中切换就需要一定的开销。 进程通常运行在用户态，可以利用内存和CPU完成一些任务；而当进程需要对硬件外设进行操作时，就需要切换到内核态；等内核态任务完成后再切换回用户态。</p>
+
+<p>为何要分两种运行模式呢？主要是为了提高底层的安全，简化上层开发。不用担心用户的非法操作对底层硬件产生影响，因为非法操作在系统调用这一层被屏蔽了。</p>
+
+<p>Apache中通过.htaccess文件来为访问目录下各个子目录进行局部配置，但是也会产生一定的系统开销。
+可以将httpd.conf中AllowOverrid设置为All,</p>
+
+<pre><code>&lt;Directory /&gt;
+    AllowOverride all
+    Require all denied
+&lt;/Directory&gt;
+</code></pre>
+
+<p>通过strace命令跟踪某一子进程，获得某次请求的系统调用如下：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-1.png" alt="" /></p>
+
+<p>此时，通过ab压测，结果如下：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-2.png" alt="" /></p>
+
+<p>然后我们关闭.htacess功能，重启apache，再次使用strace跟踪，结果如下所示：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-3.png" alt="" /></p>
+
+<p>ab压测结果如下：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-4.png" alt="" />
+比较两次压测结果，可见系统调用对服务器的吞吐量影响还是非常明显的。</p>
+
+<h3 id="持久连接-长连接">持久连接/长连接</h3>
+
+<p>持久连接（Keep-Alive）即为长连接，即对同一次连接的多次复用（连续发送多份数据）。而对应的短连接则是建立连接并发送完数据后断开，下次再建连接、发送、断开，如此反复。</p>
+
+<p><strong>HTTP长连接需要浏览器和服务器的共同协作，缺一不可</strong>。因为TCP连接是双向通信的，双方都可以主动关闭，任何一方断开都会引起另一方的关闭。对于长连接而言，关键的一点就是长连接的时间设置，在运行过程中，以时间段的为准，时间段的一方先断开连接。不同浏览器的长连接超时时间也不一致。</p>
+
+<p>在Apache中可以通过以下方法关闭：</p>
+
+<pre><code>KeepAlive Off
+</code></pre>
+
+<p>同样可以设置长连接的超时时间：</p>
+
+<pre><code>KeepAliveTimeout 30
+</code></pre>
+
+<p>下面通过在Nginx服务器下的压测，通过ab启动长连接模拟发起支持长连接的HTTP请求。通过strace统计得出结果</p>
+
+<p>不使用长连接：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-5.png" alt="" /></p>
+
+<p>使用长连接：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-6.png" alt="" /></p>
+
+<p>可见，长连接对吞吐量的提高有显著的改善，accept的调用耗时、调用次数都有所降低。</p>
+
+<p>长连接的超时对web服务器的性能也有影响，并不是超时时间越长越好。如果客户端没有任何请求，但超时时间还没到，服务器不得不维持空闲着的连接（对于Apache，将维持大量空闲进程，影响服务器性能 ）。</p>
+
+<h3 id="sendfile">sendfile</h3>
+
+<p>对于静态文件的请求（图片、样式表等），在请求过程中，磁盘文件数据先经过内核缓冲区，到用户内存空间，然后静态文件又会原封不动的送到网卡对应的内核缓冲区。</p>
+
+<p><strong>sendfile的目的就在于内核希望请求的处理尽量在内核完成，减少内核态的切换，以及用户态数据的开销。</strong></p>
+
+<p>Apache默认是开启sendfile(sendfile on)的。通过对静态文件的访问，用strace跟踪如下图：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-7.png" alt="" /></p>
+
+<p>上述截图中，9代表的是磁盘的文件描述符；10代表的静态文件的文件描述符。可见直接通过sendfile对文件发送，而不经过用户内存空间。该方式下ab压测（用户并发数100， 总请求数1000， 文件大小1.5M）,吞吐量为1440.44 req/s。</p>
+
+<p>而关闭sendfile，跟踪如下图：
+<img src="../../../../pic/2016/2016-04-25-apache-conf-8.png" alt="" /></p>
+
+<p>好吧，截图中全是read，lseek函数，吞吐量为437.32 req/s(不忍直视)。但是sendfile对小文件而言发挥的作用应该不大，因为此时拷贝耗时已经不是主要因素了，所以还是需要结合具体业务来选择。</p>
+
+<p>其实要达到这种效果，还需要设置(EnableMMAP off).内存映射能够直接将磁盘文件映射到内存，以提高磁盘I/O的性能。使得访问文件能像访问内存一样自由，但是也是有代价的，对于共享型内存映射，如果一个文件被很多进程映射，那每次修改同步将有一定的时间开销。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《构建高性能web站点》</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/04/25/apache-conf/">https://maodanp.github.io/2016/04/25/apache-conf/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/">
+                            <i class="fa fa-tags"></i>
+                            服务器性能
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/tags/apache/">
+                            <i class="fa fa-tags"></i>
+                            apache
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/04/linux-performace-cmd-two/">liunx性能检测常用命令(二)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月04日)</span></li><li id="li-rels"><a href="/2016/09/03/linux-performace-cmd-one/">liunx性能检测常用命令(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月03日)</span></li><li id="li-rels"><a href="/2016/05/23/web-cache/">浏览器缓存</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月23日)</span></li><li id="li-rels"><a href="/2016/05/19/server-concurrent/">服务器并发策略</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月19日)</span></li><li id="li-rels"><a href="/2016/05/10/opcode/">PHP动态脚本Opcode</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月10日)</span></li><li id="li-rels"><a href="/2016/05/05/io-multiplexing/">I/O多路复用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月05日)</span></li><li id="li-rels"><a href="/2016/05/01/io-model/">服务器的I/O模型</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月01日)</span></li><li id="li-rels"><a href="/2016/04/24/apache-bench/">ApacheBench(ab)压力测试</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月24日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/04/28/golang-resolve/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/04/24/apache-bench/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#系统调用">系统调用</a></li>
+<li><a href="#持久连接-长连接">持久连接/长连接</a></li>
+<li><a href="#sendfile">sendfile</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

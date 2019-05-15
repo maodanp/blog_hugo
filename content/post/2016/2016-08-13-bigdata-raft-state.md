@@ -17,7 +17,7 @@ url: "/2016/08/13/bigdata-raft-state"
 
 下图为每个Raft节点保存的一些状态信息：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-1.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-1.png)
 
 大致解释为：
 
@@ -68,7 +68,7 @@ url: "/2016/08/13/bigdata-raft-state"
 
 以下为**AppendEntries RPC**的格式和说明:
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-2.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-2.png)
 
 从以上**AEs(AppendEntries RPC)**的请求、响应格式说明可以看到，Raft对于实现细节有非常清晰的界定与描述。对于RPC接受者的实现主要有以下几种情况：
 
@@ -168,7 +168,7 @@ func (s *server) processAppendEntriesResponse(resp *AppendEntriesResponse) {
 
 以下为**RequestVote RPC**的格式和说明:
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-3.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-3.png)
 
 对于**RequestVote RPC**接受者的处理流程：
 
@@ -277,7 +277,7 @@ Raft关于容错的处理是需要考虑的方面。主要的异常包括**Leade
 
 下图为情况(2)中(a)的情形，即大多数节点都**AppendEntries**了，根据Raft安全性原则，后续的**Leader**在*F_1*或者*F_2* 中产生，那么 “Hello”命令也间接被提交了。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-4.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-4.png)
 
 对于情况(3)，类似于情况(2)中的(a)。
 
@@ -285,7 +285,7 @@ Raft关于容错的处理是需要考虑的方面。主要的异常包括**Leade
 
 **Follower crash**比较简单，主要是**crash**恢复后怎么保持log与**Leader**的一致性。具体如图示，*F_4*恢复后，怎么保持数据一致？
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-5.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-5.png)
 
 在之前**节点状态数据**中我们看到，每个**节点**中会维护一个**Peer[]**, 存放集群中的节点信息。其中就有一个**prevLogIndex**，用于维护上一次该**Follower**最新添加的log的索引号。如果 *F_4* 恢复了，**Leader**中维护的**prevLogIndex=1**，后续将从索引2开始的所有**log entries**发送给 *F_4* 。
 
@@ -295,17 +295,17 @@ Raft关于容错的处理是需要考虑的方面。主要的异常包括**Leade
 
 下图为网络分区的一种情形，其中*le_1* 为原来的**Leader**， *le_2*为分区二新选举出的**Leader**（**term**比分区一的大)。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-6.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-6.png)
 
 对于图中的**分区一**，由于通信的节点不满足大多数节点（这里假设没有机制去变化整个集群总共的节点数量），所以向该分区中添加的日志都不能提交，客户端将一直收到超时的回复。而对于**分区二**，满足提交的条件，该分区中的日志都能够被正常提交。
 
 待分区恢复，*le_1*由于term小于*le_2*，则自动转为Follower状态，如下图所示，最终能够实现一致性。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-7.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-7.png)
 
 下图为网络分区的另一种情形，*le_1* 分区占有了大部分节点，能够正常的提交日志。但是**分区二**中的两个**Follower**节点，由于选票个数未过半，将持续处于**Candidate**状态，直到网络恢复。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-08-13-bigdata-raft-state-8.png)
+![](../../../../pic/2016/2016-08-13-bigdata-raft-state-8.png)
 
 由于**分区二**的竞选，导致term不停增加，网络分区恢复后，集群中的term号会随着**leader**的**AppendEntries RPC**（参见**processAppendEntriesResponse**函数），将term一起同步到最新。
 

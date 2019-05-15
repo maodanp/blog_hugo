@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="前一篇讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="liunx性能检测常用命令(二) - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    liunx性能检测常用命令(二)
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年09月04日 
+                </div>
+                <h1 class="post-title">liunx性能检测常用命令(二)</h1>
+            </header>
+
+            <div class="post-content">
+                <p><a href="/2016/09/03/linux-performace-cmd-one">前一篇</a>讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。</p>
+
+<h3 id="iostat">iostat</h3>
+
+<p>iostat主要用于监控系统设备的IO负载情况。 主要用法如下:</p>
+
+<pre><code>iostat -xz 1
+
+Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
+sda               0.00    51.00    0.00   22.00     0.00   648.00    29.45     0.00    0.05   0.05   0.10
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.88    0.00    0.38    0.04    0.00   98.70
+
+Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
+sda               0.00    20.00    0.00   16.00     0.00   288.00    18.00     0.01    0.75   0.06   0.10
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           3.69    0.00    0.88    0.00    0.00   95.43
+</code></pre>
+
+<p>其中，<code>-x</code>将用于显示和io相关的扩展数据; <code>-z</code>将取消显示在该间隔统计数据中无io活动的设备。</p>
+
+<ul>
+<li><code>r/s, w/s, rkB/s, wkB/s</code> 分别表示每秒读写次数和每秒读写数据量（千字节）。读写量过大，可能会引起性能问题。</li>
+<li><code>await</code> IO操作的平均等待时间，单位是毫秒。这是应用程序在和磁盘交互时，需要消耗的时间，包括IO等待和实际操作的耗时。如果这个数值过大，可能是硬件设备遇到了瓶颈或者出现故障。</li>
+<li><code>avgqu-sz</code> 向设备发出的请求平均数量。如果这个数值大于1，可能是硬件设备已经饱和（部分前端硬件设备支持并行写入）。</li>
+<li><code>%util</code> 设备利用率。这个数值表示设备的繁忙程度，经验值是如果超过60，可能会影响IO性能（可以参照IO操作平均等待时间）。如果到达100%，说明硬件设备已经饱和。</li>
+</ul>
+
+<h3 id="free">free</h3>
+
+<pre><code>free -m
+
+              total       used       free      shared     buffers   cached
+Mem:           1002        769        232        0           62       421
+-/+ buffers/cache:         286        715
+Swap: 1153 0 1153
+</code></pre>
+
+<p>第一部分Mem行。该行是针对OS而言的，它认为buffers/cached都是属于被使用,所以它认为free只有232M。存在如下关系：</p>
+
+<pre><code>total(1002M) = used(769M) + free(232M)
+</code></pre>
+
+<p>第二部分(-/+ buffers/cache)从应用程序的角度而言的，Mem行的buffers/cached 是等同可用的，因为buffer/cached是为了提高程序执行的性能，当程序使用内存时，buffer/cached会很快地被使用。</p>
+
+<pre><code>* (-buffers/cache) used内存数：286M (Mem行中的used – buffers – cached)
+* (+buffers/cache) free内存数: 715M (Mem行中的free + buffers + cached)
+</code></pre>
+
+<p><strong>从应用的角度看，可用内存就是-/+ buffers/cache行的free</strong>，如果可用内存非常少，系统可能会动用交换交换分区（如果配置了的话），这样会增加IO开销（可以在iostat命令中提现），降低系统性能。</p>
+
+<h3 id="sar">sar</h3>
+
+<h4 id="网络设备的吞吐率">网络设备的吞吐率</h4>
+
+<p><code>sar -n DEV 1</code> 可以用于查看各个网络设备的吞吐量，判断网络设备的饱和度。</p>
+
+<pre><code>sar -n DEV 1
+
+11时58分49秒     IFACE   rxpck/s   txpck/s    rxkB/s    txkB/s   rxcmp/s   txcmp/s  rxmcst/s
+11时58分50秒        lo    174.75    174.75     99.00     99.00      0.00      0.00      0.00
+11时58分50秒       em1     27.27     19.19     13.53      3.12      0.00      0.00      1.01
+11时58分50秒       em2      6.06      0.00      0.38      0.00      0.00      0.00      1.01
+11时58分50秒       em3     98.99     94.95     37.58      7.10      0.00      0.00      0.00
+11时58分50秒       em4      0.00      0.00      0.00      0.00      0.00      0.00      0.00
+11时58分50秒   docker0      0.00      0.00      0.00      0.00      0.00      0.00      0.00
+11时58分50秒    virbr0      0.00      0.00      0.00      0.00      0.00      0.00      0.00
+11时58分50秒 virbr0-nic     0.00      0.00      0.00      0.00      0.00      0.00      0.00
+</code></pre>
+
+<p>其中，<code>rxkB/s</code>，<code>txkB/s</code>分别表示网卡的单位时间的进出口流量。在排查性能问题时，可以通过网络设备的吞吐量，判断网络设备是否已经饱和。</p>
+
+<h4 id="tcp连接状态">TCP连接状态</h4>
+
+<p><code>sar -n TCP,ETCP 1</code>可以用于查看TCP连接状态。</p>
+
+<pre><code>sar -n TCP,ETCP 1
+
+12时03分21秒  active/s passive/s    iseg/s    oseg/s
+12时03分22秒     13.13     11.11    277.78    283.84
+</code></pre>
+
+<p>其中参数含义：</p>
+
+<ul>
+<li>active/s：每秒本地发起的TCP连接数，既通过connect调用创建的TCP连接</li>
+<li>passive/s：每秒远程发起的TCP连接数，即通过accept调用创建的TCP连接</li>
+<li>retrans/s：每秒TCP重传数量</li>
+</ul>
+
+<p>TCP连接数可以用来判断性能问题是否由于建立了过多的连接，进一步可以判断是主动发起的连接，还是被动接受的连接。TCP重传可能是因为网络环境恶劣，或者服务器压力过大导致丢包。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p><a href="http://www.tuicool.com/articles/mAFjaq">centos 下安装监控工具</a></p>
+
+<p><a href="http://www.cnblogs.com/zhaoyl/p/4325811.html">正确解读free -m</a></p>
+
+<p><a href="http://www.chinaz.com/server/2013/0401/297942.shtml">linux sar 命令详解</a></p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/">https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/linux/">
+                            <i class="fa fa-tags"></i>
+                            Linux
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/">
+                            <i class="fa fa-tags"></i>
+                            服务器性能
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/03/linux-performace-cmd-one/">liunx性能检测常用命令(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月03日)</span></li><li id="li-rels"><a href="/2016/05/23/web-cache/">浏览器缓存</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月23日)</span></li><li id="li-rels"><a href="/2016/05/19/server-concurrent/">服务器并发策略</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月19日)</span></li><li id="li-rels"><a href="/2016/05/10/opcode/">PHP动态脚本Opcode</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月10日)</span></li><li id="li-rels"><a href="/2016/05/05/io-multiplexing/">I/O多路复用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月05日)</span></li><li id="li-rels"><a href="/2016/05/01/io-model/">服务器的I/O模型</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月01日)</span></li><li id="li-rels"><a href="/2016/04/25/apache-conf/">apache配置与性能</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月25日)</span></li><li id="li-rels"><a href="/2016/04/24/apache-bench/">ApacheBench(ab)压力测试</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月24日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/09/04/go/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/09/03/linux-performace-cmd-one/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#iostat">iostat</a></li>
+<li><a href="#free">free</a></li>
+<li><a href="#sar">sar</a>
+<ul>
+<li><a href="#网络设备的吞吐率">网络设备的吞吐率</a></li>
+<li><a href="#tcp连接状态">TCP连接状态</a></li>
+</ul></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

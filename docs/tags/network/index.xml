@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>network on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/network/</link>
+    <description>Recent content in network on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Wed, 20 May 2015 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/network/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>setopt简介</title>
+      <link>https://maodanp.github.io/2015/05/20/introduce-of-setopt/</link>
+      <pubDate>Wed, 20 May 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/05/20/introduce-of-setopt/</guid>
+      <description>&lt;p&gt;在阅读别人的代码时，网络部分经常会遇到&lt;code&gt;setopt&lt;/code&gt;函数，下面关于几个生疏的选项作简要总结。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>非阻塞connect</title>
+      <link>https://maodanp.github.io/2015/06/18/network_connect/</link>
+      <pubDate>Wed, 13 May 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/06/18/network_connect/</guid>
+      <description>&lt;p&gt;本文总结了关于非阻塞connect的处理细节，实现细节，作简要总结。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

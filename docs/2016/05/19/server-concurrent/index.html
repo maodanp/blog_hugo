@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="技术是随着需求的发展而不断前进的，正如服务器的并发量。对于单台服务器而言，资源是有限的，采用何种并发策略最大限度的利用服务器的性能，提高其吞吐量也是值得研究的，本篇将详述服务器的几种并发策略。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="服务器并发策略 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    服务器并发策略
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年05月19日 
+                </div>
+                <h1 class="post-title">服务器并发策略</h1>
+            </header>
+
+            <div class="post-content">
+                <p>技术是随着需求的发展而不断前进的，正如服务器的并发量。对于单台服务器而言，资源是有限的，采用何种并发策略最大限度的利用服务器的性能，提高其吞吐量也是值得研究的，本篇将详述服务器的几种并发策略。</p>
+
+<p>随着互联网的发展，技术也是在不断的进步的。最初的服务器都是基于进程/线程模型的，新到来一个TCP连接，就需要分配1个进程（或者线程）。一台机器无法创建很多进程。如果是并发数为1万，那就要创建1万个进程，对于单台服务器而言显然是无法承受的。这就是C10K问题。</p>
+
+<p><img src="../../../../pic/2016/2016-05-19-server-concurrent-c10K.jpg" alt="" /></p>
+
+<p>web服务器需要不断的读取连接请求，然后进行处理，并将结果发送给客户端。设计并发策略的目的就是让I/O操作和CPU计算尽量重叠进行。以下列举几种常见的并发策略：</p>
+
+<h3 id="每个进程处理一个连接-process-per-connection">每个进程处理一个连接(process-per-connection)</h3>
+
+<p>基本采用accept+fork系统调用方式，即由主进程负责accept()来自客户端的连接，收到客户端连接后立马fork()一个新的worker进程来处理，处理结束后进程被销毁。</p>
+
+<p>传统Unix并发网络编程方案，该方案适合并发连接数不大的情况。至今仍有一些网络服务器用这种方式：PostgreSQL和Perforce的服务端。该方案适合“<strong>计算响应时间的工作量远大于fork( )的开销</strong>”这种情况。这种方案适合长连接，但不大适合短连接，因为fork()开销大于处理任务的用时。Python代码如下所示：</p>
+
+<pre><code>#ForkingTCPServer 会对每个客户连接新建一个子进程
+from SocketServer import BaseRequestHandler, TCPServer
+from SocketServer import ForkingTCPServer, ThreadingTCPServer
+
+class EchoHandler(BaseRequestHandler):
+    def handle(self):
+        print &quot;got connection from&quot;, self.client_address
+        while True:
+            data = self.request.recv(4096)
+            if data:
+                sent = self.request.send(data)    # sendall?
+            else:
+                print &quot;disconnect&quot;, self.client_address
+                self.request.close()
+                break
+
+if __name__ == &quot;__main__&quot;:
+    listen_address = (&quot;0.0.0.0&quot;, 2007)
+    server = ForkingTCPServer(listen_address, EchoHandler)
+    server.serve_forever()
+</code></pre>
+
+<p>thread-per-connection(每个线程处理一个连接)，该方式与 process-per-connection类似，初始化线程的开销稍微小一些，但连接数仍然线程数的限制，且连接数非常大，对系统将产生很大的负担。</p>
+
+<h3 id="每个进程处理多个连接-prefork">每个进程处理多个连接（prefork）</h3>
+
+<p>该方式是Apache httpd一直采用的方案，该方式由主进程预先创建一定数量的子进程，每个请求由一个子进程来处理，且每个子进程可以处理多个请求。父进程往往只负责子进程的管理，根据负载管理子进程的数量。</p>
+
+<p>Apache的所有子进程使用阻塞accept()来竞争接收连接。但是当一个请求连接到达，内核会激活所有阻塞在accept()的子进程，但只有一个能够成功获得连接并返回到用户空间，其余的子进程由于得不到连接而继续回到休眠状态，这种“惊群”也会造成一定的性能损耗。</p>
+
+<p>当然，一个子进程处理多个请求，有效方式基本都是I/O复用（复用的是进程/线程），可以使用select/poll/epoll等不同方案实现（见[I/O多路复用详解]()）。下面给出了单个进程的poll实现：</p>
+
+<pre><code>#事件的处理通过handlers转发到各个函数中，不再集中在一处
+import socket
+import select
+
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server_socket.bind(('', 2007))
+server_socket.listen(5)
+# serversocket.setblocking(0)
+
+poll = select.poll() # epoll() should work the same
+connections = {}
+handlers = {}
+
+#普通客户连接的处理函数时handler_request，又将连接断开和数据到达两个事件分开
+def handle_input(socket, data):
+    socket.send(data) # sendall() partial?
+
+def handle_request(fileno, event):
+    if event &amp; select.POLLIN:
+        client_socket = connections[fileno]
+        data = client_socket.recv(4096)
+        if data:
+            handle_input(client_socket, data)
+        else:
+            poll.unregister(fileno)
+            client_socket.close()
+            del connections[fileno]
+            del handlers[fileno]
+
+#listening fd 的处理函数时handle_accept，它会注册客户连接的handler
+def handle_accept(fileno, event):
+    (client_socket, client_address) = server_socket.accept()
+    print &quot;got connection from&quot;, client_address
+    # client_socket.setblocking(0)
+    poll.register(client_socket.fileno(), select.POLLIN)
+    connections[client_socket.fileno()] = client_socket
+    handlers[client_socket.fileno()] = handle_request
+
+poll.register(server_socket.fileno(), select.POLLIN)
+handlers[server_socket.fileno()] = handle_accept
+
+while True:
+    events = poll.poll(10000)  # 10 seconds
+    for fileno, event in events:
+        handler = handlers[fileno]
+        handler(fileno, event)
+</code></pre>
+
+<p>因为Linux在互联网中是使用率最高的系统，服务器的I/O多路复用基本都采用epoll方式实现。但是epoll依赖于特定的平台。目前主流的web服务器基本采用Reactor模型(事件驱动模型，EventLoop)，如Nginx、Node.js等。</p>
+
+<h3 id="reactor模型">Reactor模型</h3>
+
+<p>在高性能的web服务器设计中，使用最广泛的基本是Reactor模式（non-blocking IO + IO multiplexing）。</p>
+
+<p><img src="../../../../pic/2016/2016-05-19-server-concurrent-reactor.png" alt="" /></p>
+
+<p>在该模式下，程序的基本结构是时间循环（event loop），以时间驱动（event-driven）和事件回调方式实现业务逻辑。伪代码如下：</p>
+
+<pre><code>while(!done) {
+    int timeout = getNextTimedCallback();
+    int retval = epoll(fds, nfds, timeout);
+    if (retval &lt; 0) {
+        //处理错误，回调用户的error handler
+    } else {
+        //处理到期的timers, 回调用户的timer handler
+        if（retval &gt; 0）{
+        //处理IO事件，回调用户的IO event handler
+    }
+ } 
+}
+</code></pre>
+
+<p>Reactor模型的优点是通过网络库来管理数据的收发，程序只关心逻辑，通过该模型能够提高用户的并发度。</p>
+
+<p>该模型适合IO密集的应用，但是不太适合CPU密集的应用，因为较难发挥多核的威力。一定要注意避免在事件回调中执行耗时的操作，否则会影响程序的响应。</p>
+
+<p>使用该方式的web服务器有很多，包括lighthttpd(reactor)，NodeJs，Nginx(每个工作进程一个reactor)，ACE, Twisted(Python), libevent/libev(事件驱动库，能够兼容不同的系统平台)。</p>
+
+<h3 id="协程-coroutine">协程(coroutine)</h3>
+
+<p>该方式与reactor模型本质上区别不大，关键在于回调上下文的保存以及执行机制。这种方式试图通过一组少量的线程来实现多个任务，旦某个任务阻塞，则可能用同一线程继续运行其他任务，避免大量上下文的切换。而且，各个协程之间的切换，往往是用户通过代码来显式指定的（跟各种 callback 类似），不需要内核参与。</p>
+
+<p>综合而言，相对于reactor模型， 协程的优势在于能够允许创建大量实例/连接（百万级别），且类似于同步阻塞方式。缺点与reactor类似，对于CPU密集型计算，其他协程将不能继续运行了。</p>
+
+<blockquote>
+<p>Erlang解决了协程密集计算的问题，它基于自行开发VM，并不执行机器码。即使存在密集计算的场景，VM发现某个协程执行时间过长，也可以进行中止切换。Golang由于是直接执行机器码的，所以无法解决此问题。所以Golang要求用户必须在密集计算的代码中，自行Yield。</p>
+</blockquote>
+
+<h3 id="reactors-threads-pool模型">Reactors + threads pool模型</h3>
+
+<p>对于上述的reactor模型，已经说过，会存在callback hell问题，不适用于CPU密集型的场景。自然我们会想到将CPU密集型的任务分离出来，单独用线程处理。</p>
+
+<p>这种方案适合既有突发IO（利用多线程处理多个连接上的IO），又有突发计算的应用（利用线程池把一个连接上的计算任务分配给多个线程去做). 示例图如下所示：</p>
+
+<p><img src="../../../../pic/2016/2016-05-19-server-concurrent-reactors.png" alt="" /></p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p><a href="http://blog.jobbole.com/99954/#comment-156379">聊聊 C10K 问题及解决方案</a></p>
+
+<p><a href="http://jolestar.com/parallel-programming-model-thread-goroutine-actor/">并发之痛 Thread，Goroutine，Actor</a></p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/05/19/server-concurrent/">https://maodanp.github.io/2016/05/19/server-concurrent/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/">
+                            <i class="fa fa-tags"></i>
+                            服务器性能
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/04/linux-performace-cmd-two/">liunx性能检测常用命令(二)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月04日)</span></li><li id="li-rels"><a href="/2016/09/03/linux-performace-cmd-one/">liunx性能检测常用命令(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月03日)</span></li><li id="li-rels"><a href="/2016/05/23/web-cache/">浏览器缓存</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月23日)</span></li><li id="li-rels"><a href="/2016/05/10/opcode/">PHP动态脚本Opcode</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月10日)</span></li><li id="li-rels"><a href="/2016/05/05/io-multiplexing/">I/O多路复用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月05日)</span></li><li id="li-rels"><a href="/2016/05/01/io-model/">服务器的I/O模型</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月01日)</span></li><li id="li-rels"><a href="/2016/04/25/apache-conf/">apache配置与性能</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月25日)</span></li><li id="li-rels"><a href="/2016/04/24/apache-bench/">ApacheBench(ab)压力测试</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月24日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/05/23/web-cache/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/05/10/opcode/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#每个进程处理一个连接-process-per-connection">每个进程处理一个连接(process-per-connection)</a></li>
+<li><a href="#每个进程处理多个连接-prefork">每个进程处理多个连接（prefork）</a></li>
+<li><a href="#reactor模型">Reactor模型</a></li>
+<li><a href="#协程-coroutine">协程(coroutine)</a></li>
+<li><a href="#reactors-threads-pool模型">Reactors + threads pool模型</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

@@ -13,7 +13,7 @@ url: "/2015/06/18/distrubuted-server"
 
 ### 整体框架
 下面结合Hadoop的框架思想与工作中接触到的分布式框架，给出简易分布式服务器框架的设计。整体设计框架如下图所示：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-06-18-distrubuted-server-1.png)
+![](../../../../pic/2015/2015-06-18-distrubuted-server-1.png)
 
 如上图示，可以将整体模块分为5个结构层次，分别为： 客户端层、JobTracker层、TaskTracker层、DBC/CloudC层、以及最后的 DB/Cloud层。
 
@@ -40,13 +40,13 @@ DB/Cloud分别为数据库、云存储（可以部署在一台服务器或不同
 
 ### JobTracker实现细节
 JobTracker是整个系统的核心租价，是系统高效运转的关键。其实现框架如下图：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-06-18-distrubuted-server-2.png)
+![](../../../../pic/2015/2015-06-18-distrubuted-server-2.png)
 
 这里，将JobTracker的内部框架分为四个模块，分别是 TaskScheduler（任务调度模块），TaskSelect（任务选择模块），ResourceSelect（资源选择模块，选择哪个TaskTracker执行任务）。私有DB模块（存放任务的数据库）。
 
 * TaskScheduler模块
 该模块负责Job与Task之间的关系维护，负责Job与task的进度管理及更新等工作。这里可以仿照hadoop采用“二层多叉树”方式描述和跟踪每个作业的运行状态（Hadoop采用的“三层多叉树”，多了一层任务运行尝试）。
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-06-18-distrubuted-server-3.png)
+![](../../../../pic/2015/2015-06-18-distrubuted-server-3.png)
 
 其中，JobTracker为每个作业创建一个JobInProcess对象以跟踪和监控其运行状态。该对象存在于作业的整个运行过程中。同时，采用分而治之的策略，JobInProcess将每个作业拆分成若干个任务，并为每个任务创建一个TaskInProcess对象以跟踪和监控其运行状态。
 
@@ -68,7 +68,7 @@ JobTracker是整个系统的核心租价，是系统高效运转的关键。其�
 
 ### TaskTracker实现细节
 TaskTracker是任务的执行者，主要负责任务的执行和任务状态的上报。该模块的框架图如下所示：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-06-18-distrubuted-server-4.png)
+![](../../../../pic/2015/2015-06-18-distrubuted-server-4.png)
 
 该模块中也有个管理模块TaskManager。该模块的作用相当于任务执行者的管理者。它有权限控制下面的Task（可以拉起、暂停、杀死下面任意一个Task）。它还会收集自身的资源，各个任务的状态等信息上报给JobTracker。 也就是说它是与JobTracker直接交互的。
 

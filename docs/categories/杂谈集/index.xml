@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>杂谈集 on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/categories/%E6%9D%82%E8%B0%88%E9%9B%86/</link>
+    <description>Recent content in 杂谈集 on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Wed, 15 May 2019 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/categories/%E6%9D%82%E8%B0%88%E9%9B%86/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>宝宝出生记</title>
+      <link>https://maodanp.github.io/2019/05/15/baby-born/</link>
+      <pubDate>Wed, 15 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2019/05/15/baby-born/</guid>
+      <description>&lt;p&gt;宝宝出生也将近一周岁了，我也在适应着作为父亲的这个角色。老婆也早已经做完月子，开始了正常的上班生活，还跟我调侃说早就忘记了生娃时所受的痛苦了。&lt;/p&gt;
+
+&lt;p&gt;这么重要的人生阶段我想很有必要记录一段，以后也能时常回忆。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>《一个人的朝圣》- 思想的旅程</title>
+      <link>https://maodanp.github.io/2016/07/20/pilgrimage/</link>
+      <pubDate>Wed, 20 Jul 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/07/20/pilgrimage/</guid>
+      <description>&lt;p&gt;最近用零零碎碎的时间看完了英国作家的小说《一个人的朝圣》，英文名称《The unlikely pilgrimage of Harold Fry》，英文翻译应该是哈罗德•弗莱不可能的朝圣之旅。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>程序猿的自我修养 — coding</title>
+      <link>https://maodanp.github.io/2016/05/03/coding/</link>
+      <pubDate>Tue, 03 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/03/coding/</guid>
+      <description>&lt;p&gt;工作三年多，记录下自己对写代码的一些认识。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>《功夫小蝇》- 苍蝇复仇记</title>
+      <link>https://maodanp.github.io/2016/04/24/gongfu/</link>
+      <pubDate>Sun, 24 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/24/gongfu/</guid>
+      <description>&lt;p&gt;最近是迷上了印度电影，从早些的《三傻》，到《OMG》、《未知死亡》、《爱无止境》、《我的个神啊》&amp;hellip;看了很多。感觉阿三的电影都很有内涵，表达宗教与信仰、人性与冲突，穿插的歌曲也都与故事情节衔接的十分自然。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>程序猿的自我修养 — 直面问题</title>
+      <link>https://maodanp.github.io/2016/03/10/face-problem/</link>
+      <pubDate>Thu, 10 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/03/10/face-problem/</guid>
+      <description>&lt;p&gt;程序员是与机器打交道的，机器识别的是二进制，不知道变通。所以，业务上任何逻辑、语法、性能等等问题都是家常便饭。问题可大可小，轻者内心嘀咕几句，自己debug；重者猛砸键盘鼠标，口爆粗语。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

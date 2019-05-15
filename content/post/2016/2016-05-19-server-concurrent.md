@@ -15,7 +15,7 @@ url: "/2016/05/19/server-concurrent"
 随着互联网的发展，技术也是在不断的进步的。最初的服务器都是基于进程/线程模型的，新到来一个TCP连接，就需要分配1个进程（或者线程）。一台机器无法创建很多进程。如果是并发数为1万，那就要创建1万个进程，对于单台服务器而言显然是无法承受的。这就是C10K问题。
 
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-05-19-server-concurrent-c10K.jpg)
+![](../../../../pic/2016/2016-05-19-server-concurrent-c10K.jpg)
 
 
 web服务器需要不断的读取连接请求，然后进行处理，并将结果发送给客户端。设计并发策略的目的就是让I/O操作和CPU计算尽量重叠进行。以下列举几种常见的并发策略：
@@ -112,7 +112,7 @@ Apache的所有子进程使用阻塞accept()来竞争接收连接。但是当一
 ### Reactor模型
 在高性能的web服务器设计中，使用最广泛的基本是Reactor模式（non-blocking IO + IO multiplexing）。
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-05-19-server-concurrent-reactor.png)
+![](../../../../pic/2016/2016-05-19-server-concurrent-reactor.png)
 
 在该模式下，程序的基本结构是时间循环（event loop），以时间驱动（event-driven）和事件回调方式实现业务逻辑。伪代码如下：
 
@@ -147,7 +147,7 @@ Reactor模型的优点是通过网络库来管理数据的收发，程序只关�
 
 这种方案适合既有突发IO（利用多线程处理多个连接上的IO），又有突发计算的应用（利用线程池把一个连接上的计算任务分配给多个线程去做). 示例图如下所示：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-05-19-server-concurrent-reactors.png)
+![](../../../../pic/2016/2016-05-19-server-concurrent-reactors.png)
 
 
 ### 参考阅读

@@ -93,7 +93,7 @@ SHUT_WR: 关闭连接的写这一半——对于TCP套接字，这称之为半�
 * close默认操作
 
 默认的操作是close后立即返回，但是如果有数据残留在套接字发送缓冲区中，系统将试着把这些数据发送给对端。
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-05-20-introduce-of-setopt-1.png)
+![](../../../../pic/2015/2015-05-20-introduce-of-setopt-1.png)
 
 客户端的close可以在服务器读取套接字接收缓冲区中的剩余数据之前就返回。如果在服务器的应用进程读取这些剩余数据之前就崩溃，客户端进程就永远不会知道（客户端一直处于FINWAIT_1状态）。
 
@@ -102,13 +102,13 @@ SHUT_WR: 关闭连接的写这一半——对于TCP套接字，这称之为半�
 客户端可以设置SO_LINGER套接字选项，指定一个正的延时时间。这种情况下客户端的close要到它的数据和FIN已被服务器主机的TCP确认后才返回（延时时间为一个较大的值）。
 
 然而，仍然会与close的默认操作存在同样的问题：在服务器应用进程读取剩余数据之前，服务器主机有可能崩溃，并且服务器应用进程永远不知道（如果SO_LINGER选项的值偏小，close仍然有可能在它的数据和FIN被服务器主机的TCP确认之前就返回，并且返回值为-1，errno为EWOULDBLOCK）。
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-05-20-introduce-of-setopt-2.png)
+![](../../../../pic/2015/2015-05-20-introduce-of-setopt-2.png)
 
 基本原则：设置SO_LINGER套接字选项后，close的唱功返回只是告诉我们先前发送的数据和FIN已经由对端TCP确认，而不能告诉我们对端的一样进成功已经读取了数据。
 
 * shutdown关闭方式
 让客户知道服务器已经读取其数据的一个方法是改为shutdown（并设置它的第二个参数为SHUT_WR）而不是调用close，并等待服务器的close调用。
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-05-20-introduce-of-setopt-3.png)
+![](../../../../pic/2015/2015-05-20-introduce-of-setopt-3.png)
 
 比较这几种方式，可以在一下3个不同时机返回:
 

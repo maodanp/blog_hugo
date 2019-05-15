@@ -1,31 +1,28 @@
-#!/bin/bash
+#!/bin/sh
 
-echo -e "\033[0;32mDeploying updates to GitHub...\033[0m"
+echo "Deploying myblog to github"
 
-# Build the project.
+# generate static html, css file using hugo
 hugo
 
-# Add changes to git.
-git add -A
+# copy some static content to ./docs to publish
+cp -rf ./cp_to_docs/* ./docs/
 
-# Commit changes.
-msg="rebuilding site `date`"
-if [ $# -eq 1 ]
-  then msg="$1"
+git add -A :/
+
+if [ $# -eq 1 ]; then
+    git commit -m "$1"
+else
+    git commit
 fi
-git commit -m "$msg"
 
-# Push source and build repos.
+# if no commit messager found, just exit
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# push to github
 git push origin master
-echo "hugo blog has commited"
 
-rm -rf ../maodanp.github.io/*
-cp -rf ../public_git/* ./maodanp.github.io
-cp -rf ./public/* ../maodanp.github.io
-cd ../maodanp.github.io/
-
-git add -A
-git commit -m "$msg"
-git push origin master
-echo "public files has commited"
-
+# copy docs folder to maodanp.github.io repo
+copy ./docs/* ../maodanp.github.io/

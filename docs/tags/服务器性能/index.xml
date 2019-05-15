@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>服务器性能 on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/</link>
+    <description>Recent content in 服务器性能 on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Sun, 04 Sep 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>liunx性能检测常用命令(二)</title>
+      <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
+      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</guid>
+      <description>&lt;p&gt;&lt;a href=&#34;https://maodanp.github.io/2016/09/03/linux-performace-cmd-one&#34;&gt;前一篇&lt;/a&gt;讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>liunx性能检测常用命令(一)</title>
+      <link>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</link>
+      <pubDate>Sat, 03 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</guid>
+      <description>&lt;p&gt;作为后端研发人员，了解Linux服务器的性能状态是非常必要的，Linux设计的性能检测命令也很多，如何在最短时间内定位到影响服务器性能的瓶颈，这也是每个研发人员的必备的技能之一。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>浏览器缓存</title>
+      <link>https://maodanp.github.io/2016/05/23/web-cache/</link>
+      <pubDate>Mon, 23 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/23/web-cache/</guid>
+      <description>&lt;p&gt;当我们通过浏览器打开一个web页面的时候，浏览器需要从web服务器下载各种资源（网页、脚本、样式表等）。但并不是每次请求都需要从web服务器中获取的，浏览器自身可以设置缓存。本篇将会介绍些浏览器的缓存技术。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>服务器并发策略</title>
+      <link>https://maodanp.github.io/2016/05/19/server-concurrent/</link>
+      <pubDate>Thu, 19 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/19/server-concurrent/</guid>
+      <description>&lt;p&gt;技术是随着需求的发展而不断前进的，正如服务器的并发量。对于单台服务器而言，资源是有限的，采用何种并发策略最大限度的利用服务器的性能，提高其吞吐量也是值得研究的，本篇将详述服务器的几种并发策略。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>PHP动态脚本Opcode</title>
+      <link>https://maodanp.github.io/2016/05/10/opcode/</link>
+      <pubDate>Tue, 10 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/10/opcode/</guid>
+      <description>&lt;p&gt;本篇较为深入的讲述了PHP的Opcode缓存原理。简要分析了PHP的脚本跟踪与分析技术。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>I/O多路复用</title>
+      <link>https://maodanp.github.io/2016/05/05/io-multiplexing/</link>
+      <pubDate>Thu, 05 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/05/io-multiplexing/</guid>
+      <description>&lt;p&gt;I/O多路复用是常用的服务器I/O模型，包括select/poll/epoll等方式。本篇针对这几种方式的优缺点分别做讲解。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>服务器的I/O模型</title>
+      <link>https://maodanp.github.io/2016/05/01/io-model/</link>
+      <pubDate>Sun, 01 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/01/io-model/</guid>
+      <description>&lt;p&gt;I/O模型的设计是后台服务能否支持高并发的至关因素。好的服务器性能必然需要良好的IO模型作为支撑。本篇重新复习下服务器常用的IO模型。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>apache配置与性能</title>
+      <link>https://maodanp.github.io/2016/04/25/apache-conf/</link>
+      <pubDate>Mon, 25 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/25/apache-conf/</guid>
+      <description>&lt;p&gt;本篇将通过apache的配置项，结合实际应用，直观感受这些配置参数对吞吐量的影响。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>ApacheBench(ab)压力测试</title>
+      <link>https://maodanp.github.io/2016/04/24/apache-bench/</link>
+      <pubDate>Sun, 24 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/24/apache-bench/</guid>
+      <description>&lt;p&gt;通常考察服务器性能都离不开高并发、高吞吐率，本文主要描述了一些基本的概念，并通过ab压测分析其中的影响因素。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

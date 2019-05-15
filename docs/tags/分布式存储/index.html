@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="分布式存储">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:title" content="分布式存储 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    分布式存储 - Danping&#39;s blog
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="posts">
+    
+    
+<article class="post li">
+    <header>
+        <div class="post-date">
+            2016年08月13日
+        </div>
+        <h2 class="post-title">
+            <a href="/2016/08/13/bigdata-raft-state/">分布式存储之Raft协议应用详解</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        <p>最近研究Raft协议，也阅读了<a href="https://github.com/goraft/raft">go-raft</a>的实现代码，虽然已经不维护了，但<strong>etcd</strong>, <strong>InfluxDB</strong>等项目前期都是使用的该库，还是很有工程上的参考价值。本篇针对<a href="http://files.catwell.info/misc/mirror/raft/raft.pdf">论文</a>与实现过程作简要的分析, 并分析了Raft的容错处理。</p>
+    </div>
+    </article>
+<hr>
+
+    
+    
+<article class="post li">
+    <header>
+        <div class="post-date">
+            2016年08月05日
+        </div>
+        <h2 class="post-title">
+            <a href="/2016/08/05/bigdata-raft/">分布式存储之Raft协议</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        <p>随着<a href="http://files.catwell.info/misc/mirror/raft/raft.pdf">Raft一致性算法论文</a>的发表，该协议在分布式领域的应用越来越广泛，大有取代Paxos协议之势。</p>
+    </div>
+    </article>
+<hr>
+
+    
+    
+<article class="post li">
+    <header>
+        <div class="post-date">
+            2016年07月17日
+        </div>
+        <h2 class="post-title">
+            <a href="/2016/07/17/bigdata-2pc/">分布式存储之2PC协议</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        <p>两阶段提交是很常用的解决分布式事务问题的方式，它可以保证分布式事务的原子性（要么所有参与进程都提交事务、要么都取消事务）。在数据一致性环境下，其代表的含义是：要么所有备份数据同时更改某个数值，要么都不更改，以此来达到数据的<strong>强一致性</strong>。</p>
+    </div>
+    </article>
+<hr>
+
+    
+    
+<article class="post li">
+    <header>
+        <div class="post-date">
+            2016年07月02日
+        </div>
+        <h2 class="post-title">
+            <a href="/2016/07/02/bigdata-cap/">分布式存储之CAP原则</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        <p>深入理解分布式环境需要理解几个基本的概念CAP、BASE、ACID等。本篇以下记录了这几个基本概念及其关系。</p>
+    </div>
+    </article>
+<hr>
+
+    
+    
+<article class="post li">
+    <header>
+        <div class="post-date">
+            2016年06月25日
+        </div>
+        <h2 class="post-title">
+            <a href="/2016/06/25/bigdata-data-slice/">分布式存储之数据切片</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        <p>在大数据时代，稍大型企业的数据量已经达到TB甚至PB级别，显然单机无法存储于处理如此规模的数据量。分布式数据的存储必然涉及到数据的分片，本篇分析了几种常用的数据分片模型。</p>
+    </div>
+    </article>
+<hr>
+
+    
+    
+<article class="post li">
+    <header>
+        <div class="post-date">
+            2015年06月18日
+        </div>
+        <h2 class="post-title">
+            <a href="/2015/06/18/distrubuted-server/">简单分布式服务器框架</a>
+        </h2>
+    </header>
+    <div class="post-content">
+        <p>最近工作中接触到分布式服务器，现针对学到的作简要概述, 分布式服务器之路刚起步。</p>
+    </div>
+    </article>
+<hr>
+
+    
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>代理 on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/%E4%BB%A3%E7%90%86/</link>
+    <description>Recent content in 代理 on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Sun, 11 Sep 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/%E4%BB%A3%E7%90%86/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>创建基于proxy的HTTP(s)连接</title>
+      <link>https://maodanp.github.io/2016/09/11/golang-https-proxy/</link>
+      <pubDate>Sun, 11 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/11/golang-https-proxy/</guid>
+      <description>&lt;p&gt;最近遇到了几次HTTP(s)如何通过代理访问内网的问题，本篇讲述基于proxy发送/接收HTTP(s)请求的客户端实现方法。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang中context包</title>
+      <link>https://maodanp.github.io/2016/09/04/go/</link>
+      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/04/go/</guid>
+      <description>&lt;p&gt;在阅读一些标准库(net、net/http、os/exec)时，经常会遇到context包，大致知道是当做关闭事件触发用的。阅读完GoTeam的文章&lt;a href=&#34;https://blog.golang.org/context&#34;&gt;Go Concurrency Patterns: Context&lt;/a&gt;，才更深刻的了解了其设计意图。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

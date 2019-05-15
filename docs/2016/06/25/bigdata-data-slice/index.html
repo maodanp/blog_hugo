@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="在大数据时代，稍大型企业的数据量已经达到TB甚至PB级别，显然单机无法存储于处理如此规模的数据量。分布式数据的存储必然涉及到数据的分片，本篇分析了几种常用的数据分片模型。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="分布式存储之数据切片 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    分布式存储之数据切片
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年06月25日 
+                </div>
+                <h1 class="post-title">分布式存储之数据切片</h1>
+            </header>
+
+            <div class="post-content">
+                <p>在大数据时代，稍大型企业的数据量已经达到TB甚至PB级别，显然单机无法存储于处理如此规模的数据量。分布式数据的存储必然涉及到数据的分片，本篇分析了几种常用的数据分片模型。</p>
+
+<h3 id="1-数据分片概念">1. 数据分片概念</h3>
+
+<p>目前主流的大数据存储于计算系统通常采用<strong>横向扩展</strong>方式支持系统的可扩展性，即通过增加机器数据获得水平扩展能力。</p>
+
+<p>对于待存储的海量数据，需要通过<strong>数据分片(Shard/Partition)</strong>来将数据进行切分、并通过<strong>数据路由(Route)</strong>机制分配到各个机器中。</p>
+
+<p>这里需要区分数据分片与数据复制的概念。</p>
+
+<p><strong><em>数据分片</em></strong>: 实现的是系统的水平扩展，达到通过增加机器来提高容量的目的</p>
+
+<p><strong><em>数据复制</em></strong>: 实现的是数据的高可用性，将数据复制多份来保障数据不会丢失（但是对数据更新时存在一致性问题）</p>
+
+<h3 id="2-分片模型">2. 分片模型</h3>
+
+<p>下图为数据分片与路由的通用模型。相当于经过了二级映射。</p>
+
+<ul>
+<li>第一级映射是<strong>key-partition</strong>映射，多对一映射关系，即多条记录被映射到同一个数据分片中</li>
+<li>第二级映射是<strong>partition-machine</strong>映射，多对一映射关系，即多个数据分片被映射到同一个物理机中</li>
+</ul>
+
+<p><img src="../../../../pic/2016/2016-06-25-bigdata-data-slice-1.png" alt="" /></p>
+
+<p><strong>哈希分片</strong>和<strong>范围分片</strong>都可以映射到这个抽象模型中。<strong><em>哈希分片</em></strong>，主要是通过哈希函数来建立<strong>key-partition</strong>映射关系，只能根据某个记录的主键获得记录内容，但是哈希方法需要记录的元信息非常的简单，只需要知道哈希函数的计算方式就行。<strong><em>范围/顺序分片</em></strong>，该分片方式在分布式表格系统中比较常见，能够根据指定的主键范围一次性读取多条满足条件的记录。</p>
+
+<h3 id="3-哈希分片">3. 哈希分片</h3>
+
+<p>通过哈希函数进行数据分片是常用手段，常用的三种哈希分片是：Round Robin、虚拟桶、一致性哈希等方法。</p>
+
+<h4 id="3-1-round-robin-哈希取模">3.1 Round Robin/哈希取模</h4>
+
+<p>该方法是非常常用的数据分片方法。将哈希值与服务器个数作除法取模映射，假设有K台物理机，则通过以下哈希函数即可实现数据分片：</p>
+
+<pre><code>H(Key) = hash(key)mod K
+</code></pre>
+
+<p><code>H(Key)</code>的数值即为存储该数据的物理机的编号。但是当服务器上线或者下线时，K的值发生变化，数据映射完全被打乱，几乎所有的额数据都需要重新分布，这将带来大量的数据迁移工作。</p>
+
+<h4 id="3-2-虚拟桶-内存表">3.2 虚拟桶/内存表</h4>
+
+<p>该思路不再简单的将哈希值和服务器个数做除法取摸映射，而是将哈希值与服务器的对应关系作为元数据，交给专门的虚拟桶/内存表来管理。所有记录首先通过哈希函数映射到对应的虚拟桶（多对一映射），第二层映射是虚拟桶和物理机之间的映射关系（多对一映射），可以通过查内存表来管理。</p>
+
+<p>该方式相比于Round Roubin，由原先<strong>记录</strong>直接到<strong>物理机</strong>的单层映射解耦成两层映射，大大加强了系统的扩展灵活性。这样，集群扩容是，可以将部分哈希值分配给新加入的机器并迁移对应的数据。</p>
+
+<h4 id="3-3-一致性哈希">3.3 一致性哈希</h4>
+
+<p><strong>分布式哈希（DHT）</strong>是P2P(Peer-to-Peer)网络（对等网络）和分布式存储中常见的一项技术。即考虑在多机分布环境，每台机器负责承载部分数据的存储情形下，如何通过哈希方式对数据进行增/删/改/查等数据操作的方法。</p>
+
+<p>算法思想： 给系统中每个节点（物理机器）分配一个token（根据物理机器IP、端口映射到哈希空间），这些token构成一个哈希环。执行数据增加操作时，先计算数据Key的哈希值，然后存放到顺时针方向第一个大于等于该哈希值的token所在的节点。</p>
+
+<p><strong>一致性的优点在于节点加入、删除时只会影响在哈希环中相邻的节点，而对其他节点没有影响。</strong></p>
+
+<p>假设哈希空间表示的长度为n, 则哈希空间所表达的数值范围是 \(0-2^n\) , 一致性哈希算法大致如下：</p>
+
+<ol>
+<li>首先求出每个服务器的hash值，将其配置到一个 \(0-2^n\) 圆环区间上；</li>
+<li>使用同样的方法求出待存储的主键hash值，也将其配置到这个圆环上；</li>
+<li>数据的路由，将数据存储到找到合适的服务器节点上（下面的路由问题）。</li>
+</ol>
+
+<p><img src="../../../../pic/2016/2016-06-25-bigdata-data-slice-2.png" alt="" /></p>
+
+<h5 id="3-3-1-路由问题">3.3.1 路由问题</h5>
+
+<p>上述方法能够将海量数据分布到集群中的不同机器集群, 实现数据分片功能。那对于接收到查询请求的节点（该服务器节点可以是hash环中的任意一个），如何根据数据记录的主键以及哈希函数来定位到记录的内容呢？</p>
+
+<p>下面列举了基于空间复杂度的几种路由方式：</p>
+
+<ul>
+<li><code>O(1)</code> 顺序查找法</li>
+</ul>
+
+<p>这是一种最直观的查找方法。每台服务器只要记录它的前一个以及后一个节点的位置信息。接收到查询请求的节点计算出数据主键的Hash值，然后判断是否在自身范围内，不在则转交给后继节点继续查找，如此循环直到找到某个机器节点。</p>
+
+<p>该做法维护的节点位置信息的空间复杂度为<code>O(1)</code>, 但是有可能遍历hash环中所有服务器，所以时间复杂度为<code>O(N)</code>。</p>
+
+<ul>
+<li><code>O(N)</code>路由表法</li>
+</ul>
+
+<p>为了加速查询，可以在每个机器节点维护一个大小为<code>N</code>的路由表（假设哈希空间为 \(0~2^n\)，这里n即为Hash空间二进制数值比特位长度）, 路由表中的第 i 个元素记录了编号为  \(p+2^{i-1}\), 其中p为服务器在Hash环中的编号。 通过维护  <code>O(N)</code> 的位置信息，查找的时间复杂度可以改进为 <code>Olog(N)</code>。</p>
+
+<p>还有一种方式，就是在每个机器节点维护一个大小为<code>N</code>的路由表，这里的<code>N</code>不是Hash空间的长度，而是物理节点的个数。即在每个服务器维护整个集群中所有服务器的位置信息，查找服务器的时间复杂度为 <code>Olog(N)</code>。工程上一般采用这种方法，一般需要一个带有总控节点的存储系统来统一维护这张表。</p>
+
+<h5 id="3-3-2-节点的加入-离开">3.3.2 节点的加入/离开</h5>
+
+<p>节点的加入根据“路由问题“可以找到后继节点，则改变相应位置的前驱、后继节点的位置关系，以体现新的网络结构。同时需要将对应的数据重新进行分片，进行数据的迁移。</p>
+
+<p>节点的离开需要考虑正常与异常离开。正常离开前需要做些准备工作，包括通知相应节点更新前驱后继节点以及将本身持有数据迁移到后继节点上。异常离开往往是机器故障导致，为避免故障机器中数据可能丢失，需要采用将同一份数据在多台机器上保留副本的方式。</p>
+
+<h5 id="3-3-3-虚拟节点">3.3.3 虚拟节点</h5>
+
+<p>引入”虚拟节点“的概念，主要为解决一致性哈希算法潜在的问题：机器节点映射到环状结构的位置是随机的，可能会导致机器负载不均衡；同时如果将所有机器平等看待会导致低配置机器高负载的情况。</p>
+
+<p>虚拟节点即将一个物理节点虚拟成若干的虚拟节点，分别映射到一致性哈希的环状结构的不同位置。一方面会有更佳的负载均衡，也可以兼顾到机器的异质性问题。</p>
+
+<p>下面简要展示Golang实现的<a href="https://github.com/stathat/consistent">一致性Hash算法</a>的主要结构。</p>
+
+<pre><code class="language-go">//定义Hash环，切片中元素为有序的物理节点Hash值
+type Circle []uint32
+
+
+type Consistent struct {
+	// Hash函数
+    hash  Hash  		
+    // 有序环
+    circle   Circle 
+    //虚拟节点个数
+    virtualNodes int
+    //点到主机的映射（多对一的关系）
+    virtualMap   map[uint32]string
+    //主机列表
+    members      map[string]bool
+    //同步锁
+    sync.RWMutex
+}
+
+//向Hash环中加入节点
+func (c *Consistent) Add(elt string) 
+
+//从Hash环中删除节点
+func (c *Consistent) Remove(elt string) 
+
+//根据数据主键，获取存储的节点信息
+func (c *Consistent) Get(key string) string
+</code></pre>
+
+<p>对照上面的结构，大致的结构图如下：</p>
+
+<p><img src="../../../../pic/2016/2016-06-25-bigdata-data-slice-3.png" alt="" /></p>
+
+<p>当然，以上的实现是对于一致性Hash的基本操作，具体的业务还需要考虑数据的存储，迁移，备份等等操作。</p>
+
+<h3 id="4-范围分片">4. 范围分片</h3>
+
+<p>范围分片首先将所有记录的主键进行排序，然后在排序好的主键空间里将记录划分成连续的范围（每个范围称为一个<code>子表</code>），每个字表存储有序的主键空间片段内的所有记录，通过范围分片能够避免哈希分布的数据散列问题。</p>
+
+<p>范围分片对应的key-partition映射表是通过记录主键排序切割获得的，而不同于哈希分片通过Hash函数获得。</p>
+
+<p>很多大规模存储系统都支持上述范围的分片模式，比如Google的BigTable也基本遵循上述模式。不同点在于其数据分片映射表不是单层结构，而是组织成类似B+树的层次结构，这样可容纳的数据分片个数获得极大的提升。</p>
+
+<p>B+树的层次结构中，每个字表相当于叶子节点，随着数据的插入和删除，某些字表可能变得很大或很小，数据分布不均匀。采用范围分片设计时就需要考虑子表的<code>分裂</code>与<code>合并</code>，这也将极大的增加系统的复杂度。</p>
+
+<p><strong>子表分裂</strong>是指当一个子表太大超过一定的阈值时需要分裂为两个子表，从而有机会通过系统的负载均衡机制分散到多个存储节点</p>
+
+<p><strong>子表合并</strong>一般由数据删除引起，当相邻的两个子表都很小时，可以合并为一个子表。合并的目的是为了防止系统中出现过多太小的子表，较少系统中的元数据。</p>
+
+<h3 id="5-参考阅读">5. 参考阅读</h3>
+
+<p><a href="http://www.cnblogs.com/haippy/archive/2011/12/10/2282943.html">一致性Hash算法背景</a></p>
+
+<p>大数据日知录:架构与算法 Ch1</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/06/25/bigdata-data-slice/">https://maodanp.github.io/2016/06/25/bigdata-data-slice/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E5%AD%98%E5%82%A8/">
+                            <i class="fa fa-tags"></i>
+                            分布式存储
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/08/13/bigdata-raft-state/">分布式存储之Raft协议应用详解</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年08月13日)</span></li><li id="li-rels"><a href="/2016/08/05/bigdata-raft/">分布式存储之Raft协议</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年08月05日)</span></li><li id="li-rels"><a href="/2016/07/17/bigdata-2pc/">分布式存储之2PC协议</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年07月17日)</span></li><li id="li-rels"><a href="/2016/07/02/bigdata-cap/">分布式存储之CAP原则</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年07月02日)</span></li><li id="li-rels"><a href="/2015/06/18/distrubuted-server/">简单分布式服务器框架</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年06月18日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/07/02/bigdata-cap/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/05/23/web-cache/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#1-数据分片概念">1. 数据分片概念</a></li>
+<li><a href="#2-分片模型">2. 分片模型</a></li>
+<li><a href="#3-哈希分片">3. 哈希分片</a>
+<ul>
+<li><a href="#3-1-round-robin-哈希取模">3.1 Round Robin/哈希取模</a></li>
+<li><a href="#3-2-虚拟桶-内存表">3.2 虚拟桶/内存表</a></li>
+<li><a href="#3-3-一致性哈希">3.3 一致性哈希</a>
+<ul>
+<li><a href="#3-3-1-路由问题">3.3.1 路由问题</a></li>
+<li><a href="#3-3-2-节点的加入-离开">3.3.2 节点的加入/离开</a></li>
+<li><a href="#3-3-3-虚拟节点">3.3.3 虚拟节点</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#4-范围分片">4. 范围分片</a></li>
+<li><a href="#5-参考阅读">5. 参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

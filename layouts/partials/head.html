@@ -1,0 +1,45 @@
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="{{- if .Description -}}{{- .Description -}}{{- else if .IsPage -}}{{- .Summary -}}{{- else -}}{{- .Title -}}{{- end -}}">
+<meta property="og:url" content="{{ .Site.BaseURL }}">
+{{- if eq .URL "/" -}}
+<meta property="og:type" content="website">
+{{- range first 1 .Pages -}}
+<meta property="og:title" content="{{ .Site.Title }}">
+{{- end -}}
+{{- else if eq .URL "/post/" -}}
+<meta property="og:title" content="归档 - {{ .Site.Title }}">
+{{- else if eq .URL "/tags/" -}}
+<meta property="og:title" content="分类 - {{ .Site.Title }}">
+{{- else if in .URL "/tags/" -}}
+<meta property="og:title" content="{{ .Title }} - {{ .Site.Title }}">
+{{- else -}}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ .Title }} - {{ .Site.Title }}">
+{{- end -}}
+<meta property="og:site_name" content="{{ .Site.Title }}">
+
+<title>
+    {{ if eq .URL "/" }}
+    {{ .Site.Title }}
+    {{ else if eq .URL "/post/" }}
+    归档 - {{ .Site.Title }}
+    {{ else if eq .URL "/tags/" }}
+    分类 - {{ .Site.Title }}
+    {{ else if in .URL "/tags/" }}
+    {{ .Title }} - {{ .Site.Title }}
+    {{ else }}
+    {{ .Title }}
+    {{ end }}
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>

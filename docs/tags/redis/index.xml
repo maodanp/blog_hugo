@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>redis on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/redis/</link>
+    <description>Recent content in redis on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Fri, 16 Sep 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/redis/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>基于redis的分布式锁的实现方案</title>
+      <link>https://maodanp.github.io/2016/09/16/redis-lock/</link>
+      <pubDate>Fri, 16 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/16/redis-lock/</guid>
+      <description>&lt;p&gt;在不同进程需要互斥的访问共享资源时，分布式锁是一种常用的技术手段。目前主要有几种解决方法，一种是借助于DB的事务来实现，另一种是借助于分布式键值存储系统(例如etcd, zookeeper等)实现。本篇主要介绍如何通过redis实现分布式锁。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

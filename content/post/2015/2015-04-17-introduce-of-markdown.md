@@ -35,7 +35,7 @@ Markdown使用邮件风格的 > 作为块引用。
 列表分为有序列表、无序列表。
 
 无序列表使用 *, + 和 - 作为列表生成器; 有序列表则使用数字标识。
-![标题图片](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-04-17-introduce-of-markdown-list.png)
+![标题图片](../../../../pic/2015/2015-04-17-introduce-of-markdown-list.png)
 
 ***注：标题、块引用都可以和前面的符号连着写，但列表符号就需要空行了***
 #### 链接、图片

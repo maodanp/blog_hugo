@@ -18,7 +18,7 @@ Golang的初学者有时会被slice所困扰，不理解其内部原理，使用
 
 下面让我们直接看看切片的内部结构吧：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-03-01-understanding-slices-in-go-programming-1.png)
+![](../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-1.png)
 
 上面的图片展示了一个slice的内部结构。**当你创建一个切片时，那么该切片的数据以及所隐含的数组也同样被创建了**。你创建的切片变量的值将会是这个数据结构，且当你将切片传递给一个函数时，将会在函数栈中创建这个数据结构的拷贝。
 
@@ -48,7 +48,7 @@ Golang的初学者有时会被slice所困扰，不理解其内部原理，使用
 
 	newSlice := mySlice[2:4]
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-03-01-understanding-slices-in-go-programming-2.png)
+![](../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-2.png)
 	
 [新切片](https://play.golang.org/p/OGFZgT4Y_n)指针变量的值关联了原来隐含数组的索引位置2和3。对于新的切片而言，我们现在有包含3个元素的隐含数组，我们仅仅用了其中的两个。这里新切片对隐含数组中的前两个位置的元素是不知道的，并且永远也不会用到。
 
@@ -58,7 +58,7 @@ Golang的初学者有时会被slice所困扰，不理解其内部原理，使用
 
 	newSlice2 = newSlice[:cap(newSlice)]
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-03-01-understanding-slices-in-go-programming-3.png)
+![](../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-3.png)
 
 在这个示例中，我们利用`newSlice`创建了第三个新的切片。我们没有指定起始的索引，但是指定了结束索引的位置。`newSlice2`与`newSlice`比较，有相同的起始位置，以及容量，但是长度却发生了变化。通过将`newSlice`的容量大小作为`newSlice2`的结束索引，那么`newSlice2`将使用隐含数组的所有剩余的元素。
 
@@ -145,7 +145,7 @@ Golang的初学者有时会被slice所困扰，不理解其内部原理，使用
 
 下面的图展示了每个指针变量，指针指向地址的值：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-03-01-understanding-slices-in-go-programming-4.png)
+![](../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-4.png)
 
 我们通过这些指针，能够转换成指定类型的指针，就能够显示指向的值了。这里我们创建了两个整型指针，以便于显示切片数据结构中的长度和容量的值。
 

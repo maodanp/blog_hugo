@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="I/O多路复用是常用的服务器I/O模型，包括select/poll/epoll等方式。本篇针对这几种方式的优缺点分别做讲解。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="I/O多路复用 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    I/O多路复用
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年05月05日 
+                </div>
+                <h1 class="post-title">I/O多路复用</h1>
+            </header>
+
+            <div class="post-content">
+                <p>I/O多路复用是常用的服务器I/O模型，包括select/poll/epoll等方式。本篇针对这几种方式的优缺点分别做讲解。</p>
+
+<p>在<a href="/2016/05/01/io-model">上一篇文章</a>中介绍了I/O的几种网络模型，并且提到了多路I/O复用方案，它提供了对大量文件描述符就绪检查的高性能方案，允许进程通过一 种方法来同时监听所有fd，并且快速获得所有就绪的fd，然后只针对这些fd进行数据访问。</p>
+
+<p>I/O多路复用技术适用如下场合：</p>
+
+<ol>
+<li>当客户端处理多个描述符，必须适用适用I/O复用</li>
+<li>TCP服务器既要处理监听套接字，又要处理已连接套接字，一般也要用到I/O复用</li>
+<li>服务器要处理多个服务或协议，一般也要用到I/O复用</li>
+</ol>
+
+<p>目前支持I/O多路复用的系统调用者有select, pselect, poll, epoll。 这些系统调用本质上是同步I/O，它们都需要在读写事件就绪后用户自己负责进行读写。</p>
+
+<h3 id="select">select</h3>
+
+<p>它通过一个select()系统调用来监视包含多个fd的数据，当select()返回后，该数组中就绪的fd便会被北河修改标志位，使得进程可以获得这些fd从而进行后续的读写操作。唯一的优点就是良好的跨平台性，能够支持几乎所有的平台。</p>
+
+<p>但是缺点也非常的明显：
+* 单个进程能够监听的fd数量存在最大限制（Linux上一般为1024, 可以通过宏定义甚至编译内核方式提升这一限制，但会造成效率降低）
+* 调用select()会对所有socket进行一次线性扫描，浪费了一定的开销
+* 需要维护一个用来存放大量fd的数据结构，随着fd数量的增大，用户空间和内核空间的相互拷贝的开销也在增长</p>
+
+<h3 id="poll">poll</h3>
+
+<p>poll和select在本质上差别不大，但是poll是基于链表来存储的，没有最大fd的数量限制。</p>
+
+<blockquote>
+<p>poll本质上和select没有区别，它将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态，如果设备就绪则在设备等待队列中加入一项并继续遍历，如果遍历完所有fd后没有发现就绪设备，则挂起当前进程，直到设备就绪或者主动超时，被唤醒后它又要再次遍历fd。</p>
+</blockquote>
+
+<p>它和select类似，存在缺点：大量fd数组被整体复制于用户态和内核的地址空间之间，不论socket是否处于活跃还是非活跃，大多是没有意义的socket复制。另外select()和epoll()都是“水平触发（Level Triggered）”的方式，如果就绪的fd告诉用户进程，但没有被处理，则下次还会继续报告该fd。</p>
+
+<h3 id="epoll">epoll</h3>
+
+<p>epoll直到Linux2.6才由内核实现的方法，它相对于select和epoll来说，更加灵活，没有描述符的限制。epoll将用户关系的fd事件(EPOLLIN, EPOLLOUT)存放在内核的一个事件表中，这样在用户空间和内核空间的拷贝只需要一次。</p>
+
+<blockquote>
+<p>epoll支持水平和边缘触发，它会通知进程哪些fd刚刚变为就绪状态，但仅仅通知一次。</p>
+</blockquote>
+
+<p>理论上边缘触发的性能要更高些，但是用户层的代码需要一次性循环读完，不然会存在漏读问题。</p>
+
+<blockquote>
+<p>epoll使用“事件”的就绪通知方式，通过epoll_ctl()注册fd，一旦该fd就绪，内核就会采用类似callback的回调机制来激活该fd，epoll_wait()便可以收到通知；</p>
+</blockquote>
+
+<p>这里epoll_wait()返回的是代表就绪fd数量的值，我们只需要去epoll指定的一个数组中一次取得相应数量的fd即可。</p>
+
+<p>epoll相对于select、epoll的优点较为明显：</p>
+
+<ol>
+<li>没有最大并发连接数的限制</li>
+<li>它只管“活跃”的连接，而跟连接总数无关（注意：如果没有大量空闲连接或死连接，epoll效率并不会比select/poll高很多，但是实际网络环境中，效率远高于select和poll）</li>
+<li>内存拷贝，利用mmap()文件映射内存加速与内核空间的消息传递，较少复制拷贝</li>
+</ol>
+
+<p>epoll对fd的操作有两种模式：LT(level trigger)和ET(edge trigger)，默认使用的是LT模式。</p>
+
+<p><code>LT模式</code>： 当fd就绪时，应用程序如果不立即处理时间，下次在epoll_wait返回时，会再次将该fd通知给应用程序，select也属于该类，长期关注socket读写事件，会出现CPU的忙循环（busy loop）问题。</p>
+
+<p><code>ET模式</code>： 内核在描述符就绪的时候只会通知进程一次，如果不处理，下次调用epoll_wait时，将不会通知该事件。也就是说，如果采用该模式，需要一直read/write直到errno变为EAGAIN(或EWOULDBLOCK)。epoll工作在ET时必须使用非阻塞套接字，以避免由于一个fd的阻塞读写影响对其他fd操作。</p>
+
+<h3 id="总结">总结</h3>
+
+<p>由于存在自身的特点，所以在选择select、poll、epoll时要根据具体使用场合：</p>
+
+<ol>
+<li>总的而言epoll的性能最好，但是在连接数少且连接都十分活跃的情况下， select和poll的性能不一定比epoll差，epoll内部有自己的事件通知机制</li>
+<li>由于select是跨平台的系统调用，如果考虑到应用程序的跨平台性，以及连接数的实际情况，也是一种选择方式。</li>
+</ol>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《 构建高性能web站点 》 Ch3 服务器并发处理能力</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/05/05/io-multiplexing/">https://maodanp.github.io/2016/05/05/io-multiplexing/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/">
+                            <i class="fa fa-tags"></i>
+                            服务器性能
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%A8%A1%E5%9E%8B/">
+                            <i class="fa fa-tags"></i>
+                            服务器模型
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/04/linux-performace-cmd-two/">liunx性能检测常用命令(二)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月04日)</span></li><li id="li-rels"><a href="/2016/09/03/linux-performace-cmd-one/">liunx性能检测常用命令(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月03日)</span></li><li id="li-rels"><a href="/2016/05/23/web-cache/">浏览器缓存</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月23日)</span></li><li id="li-rels"><a href="/2016/05/19/server-concurrent/">服务器并发策略</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月19日)</span></li><li id="li-rels"><a href="/2016/05/10/opcode/">PHP动态脚本Opcode</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月10日)</span></li><li id="li-rels"><a href="/2016/05/01/io-model/">服务器的I/O模型</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月01日)</span></li><li id="li-rels"><a href="/2016/04/25/apache-conf/">apache配置与性能</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月25日)</span></li><li id="li-rels"><a href="/2016/04/24/apache-bench/">ApacheBench(ab)压力测试</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月24日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/05/10/opcode/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/05/03/coding/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#select">select</a></li>
+<li><a href="#poll">poll</a></li>
+<li><a href="#epoll">epoll</a></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

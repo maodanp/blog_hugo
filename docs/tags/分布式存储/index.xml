@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>分布式存储 on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E5%AD%98%E5%82%A8/</link>
+    <description>Recent content in 分布式存储 on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Sat, 13 Aug 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E5%AD%98%E5%82%A8/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>分布式存储之Raft协议应用详解</title>
+      <link>https://maodanp.github.io/2016/08/13/bigdata-raft-state/</link>
+      <pubDate>Sat, 13 Aug 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/08/13/bigdata-raft-state/</guid>
+      <description>&lt;p&gt;最近研究Raft协议，也阅读了&lt;a href=&#34;https://github.com/goraft/raft&#34;&gt;go-raft&lt;/a&gt;的实现代码，虽然已经不维护了，但&lt;strong&gt;etcd&lt;/strong&gt;, &lt;strong&gt;InfluxDB&lt;/strong&gt;等项目前期都是使用的该库，还是很有工程上的参考价值。本篇针对&lt;a href=&#34;http://files.catwell.info/misc/mirror/raft/raft.pdf&#34;&gt;论文&lt;/a&gt;与实现过程作简要的分析, 并分析了Raft的容错处理。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之Raft协议</title>
+      <link>https://maodanp.github.io/2016/08/05/bigdata-raft/</link>
+      <pubDate>Fri, 05 Aug 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/08/05/bigdata-raft/</guid>
+      <description>&lt;p&gt;随着&lt;a href=&#34;http://files.catwell.info/misc/mirror/raft/raft.pdf&#34;&gt;Raft一致性算法论文&lt;/a&gt;的发表，该协议在分布式领域的应用越来越广泛，大有取代Paxos协议之势。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之2PC协议</title>
+      <link>https://maodanp.github.io/2016/07/17/bigdata-2pc/</link>
+      <pubDate>Sun, 17 Jul 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/07/17/bigdata-2pc/</guid>
+      <description>&lt;p&gt;两阶段提交是很常用的解决分布式事务问题的方式，它可以保证分布式事务的原子性（要么所有参与进程都提交事务、要么都取消事务）。在数据一致性环境下，其代表的含义是：要么所有备份数据同时更改某个数值，要么都不更改，以此来达到数据的&lt;strong&gt;强一致性&lt;/strong&gt;。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之CAP原则</title>
+      <link>https://maodanp.github.io/2016/07/02/bigdata-cap/</link>
+      <pubDate>Sat, 02 Jul 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/07/02/bigdata-cap/</guid>
+      <description>&lt;p&gt;深入理解分布式环境需要理解几个基本的概念CAP、BASE、ACID等。本篇以下记录了这几个基本概念及其关系。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之数据切片</title>
+      <link>https://maodanp.github.io/2016/06/25/bigdata-data-slice/</link>
+      <pubDate>Sat, 25 Jun 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/06/25/bigdata-data-slice/</guid>
+      <description>&lt;p&gt;在大数据时代，稍大型企业的数据量已经达到TB甚至PB级别，显然单机无法存储于处理如此规模的数据量。分布式数据的存储必然涉及到数据的分片，本篇分析了几种常用的数据分片模型。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>简单分布式服务器框架</title>
+      <link>https://maodanp.github.io/2015/06/18/distrubuted-server/</link>
+      <pubDate>Thu, 18 Jun 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/06/18/distrubuted-server/</guid>
+      <description>&lt;p&gt;最近工作中接触到分布式服务器，现针对学到的作简要概述, 分布式服务器之路刚起步。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="通常考察服务器性能都离不开高并发、高吞吐率，本文主要描述了一些基本的概念，并通过ab压测分析其中的影响因素。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="ApacheBench(ab)压力测试 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    ApacheBench(ab)压力测试
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年04月24日 
+                </div>
+                <h1 class="post-title">ApacheBench(ab)压力测试</h1>
+            </header>
+
+            <div class="post-content">
+                <p>通常考察服务器性能都离不开高并发、高吞吐率，本文主要描述了一些基本的概念，并通过ab压测分析其中的影响因素。</p>
+
+<h3 id="吞吐率">吞吐率</h3>
+
+<p>对于web服务器的并发处理能力，一般都用<code>吞吐率</code>来表示（req/s），即单位时间内服务器处理的请求数。
+而我们说明服务器性能的重要指标就是<code>最大吞吐率</code>，表示在单位时间内该服务器能处理的最大请求数。</p>
+
+<p>但是实际中，服务器的最大吞吐量是跟业务相关的，线上环境我们也很难模拟，准确算出一台服务器的最大吞吐量。影响因素主要有：</p>
+
+<ul>
+<li>并发用户数：如果并发用户数大于服务器所能支撑的最大并发数，那肯定会对服务器性能造成影响</li>
+<li>总请求数：即总共向服务器发送多少个请求，该值大于等于并发用户数，每个用户可以发送多个请求。</li>
+<li>请求资源类型：静态、动态内容， 文本、图片内容等都是影响吞吐量的直接因素</li>
+<li>服务器硬件：服务器本身硬件条件，包括内存容量、CPU核心、是否缓存等</li>
+<li>服务器软件：服务器用的Apache、Nginx等软件也是至关重要的因素</li>
+</ul>
+
+<p>以上影响因素中，并发用户数、总请求数是不可控的，作为<strong>压力测试的主要变量</strong>；而后续几项则是<strong>服务器压测对象的描述</strong>。</p>
+
+<h4 id="并发用户数">并发用户数</h4>
+
+<p>并发用户数是指某一时刻<code>同时</code>向服务器发送请求的用户数量, 这里的同时意味着同一时间的发送。<strong>注意：真是的用户可能会给服务器带来多个并发用户数(浏览器下载一个网页可能采用多线程的并发下载)</strong>。</p>
+
+<h4 id="请求等待时间">请求等待时间</h4>
+
+<ul>
+<li>用户平均等待时间：单个用户的质量体验</li>
+<li>服务器平均请求处理时间：服务器的质量体验（吞吐量的倒数）</li>
+</ul>
+
+<p>所以一般分析、提高服务器的并发处理能力，都是*固定某些方面因素，单独考察某一因素。并没有提高服务器并发能力的通用策略*。</p>
+
+<h3 id="ab压力测试">ab压力测试</h3>
+
+<p><img src="../../../../pic/2016/2016-04-24-apache-bench-1.png" alt="标题图片" /></p>
+
+<h4 id="参数说明">参数说明</h4>
+
+<p>其中，一些重要的参数说明如下：</p>
+
+<ul>
+<li>-n: 表示总请求数为1000</li>
+<li>-c 10: 表示并发用户数为10</li>
+<li><a href="http://localhost/phpinfo.php:">http://localhost/phpinfo.php:</a> 表示压测的目标URL</li>
+<li>Concurrency Level: 表示<strong>并发用户数</strong></li>
+<li>Time taken for tests: 表示所有这些请求被处理完的总时间</li>
+<li>Complete requests: 表示总请求数</li>
+<li>Failed requests: 表示失败的请求数</li>
+<li>Total transferred: 表示所有请求响应数据长度总和（响应头+正文数据长度）</li>
+<li>HTML transferred: 表示所有请求响应的正文长度总和（正文数据长度）</li>
+<li><code>Request per second</code>: 吞吐量， 等于 [ Complete requests / Time taken for tests ]</li>
+<li><code>Time per request</code>:  用户平均等待时间, 等于 [ Time taken for tests /（Complete requests / Cocurrency Level）]</li>
+<li><code>Time per request(accross all concurrent requests)</code>:  服务器平均请求处理时间, 等于吞吐量的倒数。 同时也等于 [ Time per request / Cocurrency Level ]</li>
+<li>Transfer rate: 表示这些请求在单位时间内从服务器获取的数据长度，等于 [ Total transferred / Time taken for tests ]</li>
+<li>Percentage of the requests served within a certain time(ms): 每个请求处理时间的分布情况（指的是Time per request）</li>
+</ul>
+
+<p>注意： 参数<strong>Failed Requests</strong>表示连接请求发生异常，或者相应超时的情况（对于返回2XX以外的状态码，将显示另一个名为“Non-2xx responses”的统计项，返回状态码的不算请求失败), 上述截图中，在Failed requests下面出现了统计失败的原因，分别有Connect、Receive、Length、Exceptions</p>
+
+<ul>
+<li>Connect 无法送出要求、目标主机连接失败、要求的过程中被中断。</li>
+<li>Receive 服务器接受连接异常。</li>
+<li>Length 响应的内容长度不一致 ( 以 Content-Length 头值为判断依据 )。</li>
+<li>Exception 发生无法预期的错误。
+<br /></li>
+</ul>
+
+<p>这里的Length是以“第一次”响应取得的Content-Length为主，如果后续的HTTP Request所得到的HTTP 响应头的Content-Length与第一次的不一致，就会得到Length的错误。 这个对于动态页面来说正常。</p>
+
+<h4 id="不同并发数的测试对比">不同并发数的测试对比</h4>
+
+<p>不同压测基于Nginx，请求总数为10000，不同并发数的测试结果如下表：</p>
+
+<table>
+<thead>
+<tr>
+<th>用户并发数</th>
+<th align="center">吞吐量(req/sec)</th>
+<th align="center">用户请求等待时间(s）</th>
+<th align="center">服务器请求处理时间(s)</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>1</td>
+<td align="center">3383.05</td>
+<td align="center">0.295</td>
+<td align="center">0.295</td>
+</tr>
+
+<tr>
+<td>2</td>
+<td align="center">3647.08</td>
+<td align="center">0.548</td>
+<td align="center">0.274</td>
+</tr>
+
+<tr>
+<td>5</td>
+<td align="center">3690.62</td>
+<td align="center">1.355</td>
+<td align="center">0.271</td>
+</tr>
+
+<tr>
+<td>10</td>
+<td align="center">3815.39</td>
+<td align="center">2.621</td>
+<td align="center">0.262</td>
+</tr>
+
+<tr>
+<td>20</td>
+<td align="center">3497.34</td>
+<td align="center">5.719</td>
+<td align="center">0.286</td>
+</tr>
+
+<tr>
+<td>50</td>
+<td align="center">4127.6</td>
+<td align="center">12.114</td>
+<td align="center">0.242</td>
+</tr>
+
+<tr>
+<td>100</td>
+<td align="center">4123.84</td>
+<td align="center">24.249</td>
+<td align="center">0.242</td>
+</tr>
+
+<tr>
+<td>150</td>
+<td align="center">4182.19</td>
+<td align="center">35.866</td>
+<td align="center">0.239</td>
+</tr>
+
+<tr>
+<td>200</td>
+<td align="center">3293.41</td>
+<td align="center">60.727</td>
+<td align="center">0.304</td>
+</tr>
+
+<tr>
+<td>500</td>
+<td align="center">2349.03</td>
+<td align="center">212.854</td>
+<td align="center">0.426</td>
+</tr>
+</tbody>
+</table>
+
+<p>如图示，在用户并发数达到100之前，随着并发数的增长，服务器的资源被不断的利用，所以吞吐量不断提高；当用户并发数达到100，则吞吐量最高；超过100后，由于资源所限（fastcgi的进程最大限制为50），吞吐量开始下滑。
+<img src="../../../../pic/2016/2016-04-24-apache-bench-2.png" alt="标题图片" /></p>
+
+<p>如果使用Apache服务器测试，或者压测的URL为静态资源，或者优化服务器的参数（最大进程个数、是否开启缓存）等等，压测的结果又是不同的。 所以并没有一个提高服务器吞吐量的通用策略，需要结合具体业务。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《构建高性能web站点》</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/04/24/apache-bench/">https://maodanp.github.io/2016/04/24/apache-bench/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%80%A7%E8%83%BD/">
+                            <i class="fa fa-tags"></i>
+                            服务器性能
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/tags/%E5%8E%8B%E5%8A%9B%E6%B5%8B%E8%AF%95/">
+                            <i class="fa fa-tags"></i>
+                            压力测试
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/04/linux-performace-cmd-two/">liunx性能检测常用命令(二)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月04日)</span></li><li id="li-rels"><a href="/2016/09/03/linux-performace-cmd-one/">liunx性能检测常用命令(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月03日)</span></li><li id="li-rels"><a href="/2016/05/23/web-cache/">浏览器缓存</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月23日)</span></li><li id="li-rels"><a href="/2016/05/19/server-concurrent/">服务器并发策略</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月19日)</span></li><li id="li-rels"><a href="/2016/05/10/opcode/">PHP动态脚本Opcode</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月10日)</span></li><li id="li-rels"><a href="/2016/05/05/io-multiplexing/">I/O多路复用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月05日)</span></li><li id="li-rels"><a href="/2016/05/01/io-model/">服务器的I/O模型</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年05月01日)</span></li><li id="li-rels"><a href="/2016/04/25/apache-conf/">apache配置与性能</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月25日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/04/25/apache-conf/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/04/24/gongfu/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#吞吐率">吞吐率</a>
+<ul>
+<li><a href="#并发用户数">并发用户数</a></li>
+<li><a href="#请求等待时间">请求等待时间</a></li>
+</ul></li>
+<li><a href="#ab压力测试">ab压力测试</a>
+<ul>
+<li><a href="#参数说明">参数说明</a></li>
+<li><a href="#不同并发数的测试对比">不同并发数的测试对比</a></li>
+</ul></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

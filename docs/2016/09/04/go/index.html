@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="在阅读一些标准库(net、net/http、os/exec)时，经常会遇到context包，大致知道是当做关闭事件触发用的。阅读完GoTeam的文章Go Concurrency Patterns: Context，才更深刻的了解了其设计意图。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="golang中context包 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    golang中context包
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年09月04日 
+                </div>
+                <h1 class="post-title">golang中context包</h1>
+            </header>
+
+            <div class="post-content">
+                <p>在阅读一些标准库(net、net/http、os/exec)时，经常会遇到context包，大致知道是当做关闭事件触发用的。阅读完GoTeam的文章<a href="https://blog.golang.org/context">Go Concurrency Patterns: Context</a>，才更深刻的了解了其设计意图。</p>
+
+<p>一般我们会通过<code>select + channel</code>的方式去终止一个协程，这也是最简单的情况。我们可以考虑些稍微复杂的情形，比如在写Go的Server服务，context包能够使得传递某些信息给相关的处理协程变得很简单，这些传递信息包括：<strong>请求域的值(request-scoped values)</strong>、<strong>中断信号(cancelation signals)</strong>、<strong>过期时间</strong>等。或者想中止某个goroutine创建的goroutines，使用context也很方便。</p>
+
+<p>目前Go1.7将原来的<code>golang.org/x/net/context</code>包挪入了标准库中，放在<code>$GOROOT/src/context</code>，可见context模式用途广泛。</p>
+
+<h3 id="context接口">Context接口</h3>
+
+<p><strong>context</strong>包的核心是一个<strong>Context</strong>类型：</p>
+
+<pre><code class="language-go">// Context包 携带信息包括过期时间、中止信号，参数值等
+// context 包里的方法是线程安全的，可以被多个 goroutine 使用
+type Context interface {
+
+    // 当Context被canceled或times out的时候，Done返回一个被close的channel 
+    Done() &lt;-chan struct{}
+
+    // 在Done的channel被closed后， Err代表被关闭的原因   
+    Err() error
+
+    // 如果存在，Deadline返回Context将要关闭的时间 
+    Deadline() (deadline time.Time, ok bool)
+
+    // 如果存在，Value返回与key相关了的值，不存在返回nil  
+    Value(key interface{}) interface{}
+}
+</code></pre>
+
+<p>其中的Done方法返回了一个通道，代表了Context的一个中止信号：当这个通道关闭，函数将中止并且立即返回。Err方法也将返回为何被终止的错误。</p>
+
+<p>Done方法返回的通道是只读的，所以Context并没有提供Cancel方法来关闭通道。这个也比较好理解，比如当一个协程创建了很多的子协程，这些子协程不能够中止父协程的。而父协程则可以通过WithCancel函数(后面描述)提供的一种方式来中止子协程。</p>
+
+<h3 id="派生的结构">派生的结构</h3>
+
+<p>context包为我们提供了两个Context包的实现，Background()与TODO()。只是返回的这两个实例都是空 Context。它们没有过期时间，没有任何值，一般在<code>main</code>,<code>init</code>,<code>tests</code>等函数中，当做对上层的Context使用，其他Context往往派生于它们(一般嵌入到其他Context中)。</p>
+
+<h4 id="cancelctx">cancelCtx</h4>
+
+<p>cancelCtx结构体继承了Context ，实现了canceler方法：</p>
+
+<pre><code class="language-go">//*cancelCtx 和 *timerCtx 都实现了canceler接口，实现该接口的类型都可以被直接canceled
+type canceler interface {
+    cancel(removeFromParent bool, err error)
+    Done() &lt;-chan struct{}
+}        
+
+type cancelCtx struct {
+    Context
+    done chan struct{} // closed by the first cancel call.
+    mu       sync.Mutex
+    children map[canceler]bool // set to nil by the first cancel call
+    err      error             
+}
+
+</code></pre>
+
+<p>其中，核心方法是<code>cancel</code>。该方法会依次遍历c.children，每个child分别cancel；如果设置了removeFromParent，则将c从其parent的children中删除</p>
+
+<pre><code class="language-go">func (c *cancelCtx) cancel(removeFromParent bool, err error) {
+      //...
+}
+</code></pre>
+
+<p>我们可以通过WithCancel函数来创建一个cancelCtx。返回一个 cancelCtx的结构，同时也会返回一个CancelFunc自定义函数，调用该函数，将会关闭对应的c.done，也就是让他的后代goroutine退出。</p>
+
+<pre><code class="language-go">func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
+    //...
+}
+</code></pre>
+
+<h4 id="timerctx">timerCtx</h4>
+
+<p>timerCtx 结构继承 cancelCtx。</p>
+
+<pre><code class="language-go">type timerCtx struct {
+    cancelCtx //此处的封装为了继承来自于cancelCtx的方法，cancelCtx.Context才是父亲节点的指针
+    timer *time.Timer // 计时器
+    deadline time.Time
+}
+</code></pre>
+
+<p>我们可以通过下面两个函数来创建timerCtx：</p>
+
+<pre><code class="language-go">func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc)
+func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+</code></pre>
+
+<p>WithDeadline 和 WithTimeout 是相似的，WithDeadline 是设置具体的deadline时间，到达deadline的时候，派生goroutine退出；WithTimeout设置的是时间间隔。</p>
+
+<h4 id="valuectx">valueCtx</h4>
+
+<p>valueCtx 结构实现了Cancel接口。该结构多了一对key,val的值。其派生goroutine通过Context以及key都能得到响应的val。</p>
+
+<pre><code class="language-go">type valueCtx struct {
+    Context
+    key, val interface{}
+}
+</code></pre>
+
+<h3 id="示例">示例</h3>
+
+<p>下面模拟了一个累加器，通过context传递累加的上限。</p>
+
+<pre><code class="language-go">package main
+
+import (
+        &quot;context&quot;   //go1.7以上版本直接使用标准库中的context
+        &quot;fmt&quot;
+        &quot;time&quot;
+)
+
+// 模拟累加器
+func accumulator(ctx context.Context) (res int) {
+        loop, ok := ctx.Value(userKey).(int)
+        if !ok {
+                return 0
+        }
+
+        // 直到累加结束或者收到closed channel
+        for i := 0; i &lt; loop; i++ {
+                res += i
+                select {
+                case &lt;-ctx.Done():
+                        fmt.Println(&quot;need to done&quot;)
+                        return res
+                default:
+                }
+        }
+        fmt.Println(&quot;finish calculate&quot;)
+        return res
+}
+
+type key int
+
+const userKey key = 0
+
+func main() {
+        // cancelCtx
+        ctx, cancel := context.WithCancel(context.Background())
+        // valueCtx
+        newCtx := context.WithValue(ctx, userKey, 10000000)
+
+        go func() {
+                time.Sleep(1 * time.Millisecond)
+                cancel() // 在调用处主动取消
+        }()
+        res := accumulator(newCtx)
+        fmt.Printf(&quot;accumulato result: %d\n&quot;, res)
+}
+</code></pre>
+
+<h3 id="总结">总结</h3>
+
+<p>在请求的输入输出函数中，一般讲context作为首个参数传递。它能够非常简便的控制超时、中止等操作，并且也能够确保信息在goroutine中的安全传输。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p><a href="https://blog.golang.org/context">Go Concurrency Patterns: Context</a></p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/09/04/go/">https://maodanp.github.io/2016/09/04/go/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/golang/">
+                            <i class="fa fa-tags"></i>
+                            golang
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/tags/%E4%BB%A3%E7%90%86/">
+                            <i class="fa fa-tags"></i>
+                            代理
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/11/golang-https-proxy/">创建基于proxy的HTTP(s)连接</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月11日)</span></li><li id="li-rels"><a href="/2016/04/30/golang-interface/">Golang — 面向对象语言(方法、接口、匿名组合)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月30日)</span></li><li id="li-rels"><a href="/2016/04/28/golang-resolve/">golang中域名解析问题</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月28日)</span></li><li id="li-rels"><a href="/2015/04/15/error-handling-in-go-part-ii/">golang错误处理(二)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月15日)</span></li><li id="li-rels"><a href="/2015/04/12/error-handling-in-go-part-i/">golang错误处理(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月12日)</span></li><li id="li-rels"><a href="/2016/03/15/using-pointers-in-go/">golang参数传递</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年03月15日)</span></li><li id="li-rels"><a href="/2016/03/01/understanding-slices-in-go-programming/">理解golang中的切片</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年03月01日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/09/11/golang-https-proxy/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/09/04/linux-performace-cmd-two/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#context接口">Context接口</a></li>
+<li><a href="#派生的结构">派生的结构</a>
+<ul>
+<li><a href="#cancelctx">cancelCtx</a></li>
+<li><a href="#timerctx">timerCtx</a></li>
+<li><a href="#valuectx">valueCtx</a></li>
+</ul></li>
+<li><a href="#示例">示例</a></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

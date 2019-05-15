@@ -27,16 +27,16 @@ Apache中通过.htaccess文件来为访问目录下各个子目录进行局部�
 	</Directory>
 	
 通过strace命令跟踪某一子进程，获得某次请求的系统调用如下：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-1.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-1.png)
 
 此时，通过ab压测，结果如下：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-2.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-2.png)
 
 然后我们关闭.htacess功能，重启apache，再次使用strace跟踪，结果如下所示：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-3.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-3.png)
 
 ab压测结果如下：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-4.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-4.png)
 比较两次压测结果，可见系统调用对服务器的吞吐量影响还是非常明显的。
 
 
@@ -56,10 +56,10 @@ ab压测结果如下：
 下面通过在Nginx服务器下的压测，通过ab启动长连接模拟发起支持长连接的HTTP请求。通过strace统计得出结果
 
 不使用长连接：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-5.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-5.png)
 
 使用长连接：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-6.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-6.png)
 
 
 可见，长连接对吞吐量的提高有显著的改善，accept的调用耗时、调用次数都有所降低。 
@@ -73,12 +73,12 @@ ab压测结果如下：
 **sendfile的目的就在于内核希望请求的处理尽量在内核完成，减少内核态的切换，以及用户态数据的开销。**
 
 Apache默认是开启sendfile(sendfile on)的。通过对静态文件的访问，用strace跟踪如下图：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-7.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-7.png)
 
 上述截图中，9代表的是磁盘的文件描述符；10代表的静态文件的文件描述符。可见直接通过sendfile对文件发送，而不经过用户内存空间。该方式下ab压测（用户并发数100， 总请求数1000， 文件大小1.5M）,吞吐量为1440.44 req/s。
 
 而关闭sendfile，跟踪如下图：
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2016/2016-04-25-apache-conf-8.png)
+![](../../../../pic/2016/2016-04-25-apache-conf-8.png)
 
 好吧，截图中全是read，lseek函数，吞吐量为437.32 req/s(不忍直视)。但是sendfile对小文件而言发挥的作用应该不大，因为此时拷贝耗时已经不是主要因素了，所以还是需要结合具体业务来选择。
 

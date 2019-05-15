@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>技术志 on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/categories/%E6%8A%80%E6%9C%AF%E5%BF%97/</link>
+    <description>Recent content in 技术志 on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Fri, 16 Sep 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/categories/%E6%8A%80%E6%9C%AF%E5%BF%97/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>基于redis的分布式锁的实现方案</title>
+      <link>https://maodanp.github.io/2016/09/16/redis-lock/</link>
+      <pubDate>Fri, 16 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/16/redis-lock/</guid>
+      <description>&lt;p&gt;在不同进程需要互斥的访问共享资源时，分布式锁是一种常用的技术手段。目前主要有几种解决方法，一种是借助于DB的事务来实现，另一种是借助于分布式键值存储系统(例如etcd, zookeeper等)实现。本篇主要介绍如何通过redis实现分布式锁。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>创建基于proxy的HTTP(s)连接</title>
+      <link>https://maodanp.github.io/2016/09/11/golang-https-proxy/</link>
+      <pubDate>Sun, 11 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/11/golang-https-proxy/</guid>
+      <description>&lt;p&gt;最近遇到了几次HTTP(s)如何通过代理访问内网的问题，本篇讲述基于proxy发送/接收HTTP(s)请求的客户端实现方法。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang中context包</title>
+      <link>https://maodanp.github.io/2016/09/04/go/</link>
+      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/04/go/</guid>
+      <description>&lt;p&gt;在阅读一些标准库(net、net/http、os/exec)时，经常会遇到context包，大致知道是当做关闭事件触发用的。阅读完GoTeam的文章&lt;a href=&#34;https://blog.golang.org/context&#34;&gt;Go Concurrency Patterns: Context&lt;/a&gt;，才更深刻的了解了其设计意图。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之Raft协议应用详解</title>
+      <link>https://maodanp.github.io/2016/08/13/bigdata-raft-state/</link>
+      <pubDate>Sat, 13 Aug 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/08/13/bigdata-raft-state/</guid>
+      <description>&lt;p&gt;最近研究Raft协议，也阅读了&lt;a href=&#34;https://github.com/goraft/raft&#34;&gt;go-raft&lt;/a&gt;的实现代码，虽然已经不维护了，但&lt;strong&gt;etcd&lt;/strong&gt;, &lt;strong&gt;InfluxDB&lt;/strong&gt;等项目前期都是使用的该库，还是很有工程上的参考价值。本篇针对&lt;a href=&#34;http://files.catwell.info/misc/mirror/raft/raft.pdf&#34;&gt;论文&lt;/a&gt;与实现过程作简要的分析, 并分析了Raft的容错处理。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之Raft协议</title>
+      <link>https://maodanp.github.io/2016/08/05/bigdata-raft/</link>
+      <pubDate>Fri, 05 Aug 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/08/05/bigdata-raft/</guid>
+      <description>&lt;p&gt;随着&lt;a href=&#34;http://files.catwell.info/misc/mirror/raft/raft.pdf&#34;&gt;Raft一致性算法论文&lt;/a&gt;的发表，该协议在分布式领域的应用越来越广泛，大有取代Paxos协议之势。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之2PC协议</title>
+      <link>https://maodanp.github.io/2016/07/17/bigdata-2pc/</link>
+      <pubDate>Sun, 17 Jul 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/07/17/bigdata-2pc/</guid>
+      <description>&lt;p&gt;两阶段提交是很常用的解决分布式事务问题的方式，它可以保证分布式事务的原子性（要么所有参与进程都提交事务、要么都取消事务）。在数据一致性环境下，其代表的含义是：要么所有备份数据同时更改某个数值，要么都不更改，以此来达到数据的&lt;strong&gt;强一致性&lt;/strong&gt;。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之CAP原则</title>
+      <link>https://maodanp.github.io/2016/07/02/bigdata-cap/</link>
+      <pubDate>Sat, 02 Jul 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/07/02/bigdata-cap/</guid>
+      <description>&lt;p&gt;深入理解分布式环境需要理解几个基本的概念CAP、BASE、ACID等。本篇以下记录了这几个基本概念及其关系。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>分布式存储之数据切片</title>
+      <link>https://maodanp.github.io/2016/06/25/bigdata-data-slice/</link>
+      <pubDate>Sat, 25 Jun 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/06/25/bigdata-data-slice/</guid>
+      <description>&lt;p&gt;在大数据时代，稍大型企业的数据量已经达到TB甚至PB级别，显然单机无法存储于处理如此规模的数据量。分布式数据的存储必然涉及到数据的分片，本篇分析了几种常用的数据分片模型。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>浏览器缓存</title>
+      <link>https://maodanp.github.io/2016/05/23/web-cache/</link>
+      <pubDate>Mon, 23 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/23/web-cache/</guid>
+      <description>&lt;p&gt;当我们通过浏览器打开一个web页面的时候，浏览器需要从web服务器下载各种资源（网页、脚本、样式表等）。但并不是每次请求都需要从web服务器中获取的，浏览器自身可以设置缓存。本篇将会介绍些浏览器的缓存技术。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>服务器并发策略</title>
+      <link>https://maodanp.github.io/2016/05/19/server-concurrent/</link>
+      <pubDate>Thu, 19 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/19/server-concurrent/</guid>
+      <description>&lt;p&gt;技术是随着需求的发展而不断前进的，正如服务器的并发量。对于单台服务器而言，资源是有限的，采用何种并发策略最大限度的利用服务器的性能，提高其吞吐量也是值得研究的，本篇将详述服务器的几种并发策略。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>PHP动态脚本Opcode</title>
+      <link>https://maodanp.github.io/2016/05/10/opcode/</link>
+      <pubDate>Tue, 10 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/10/opcode/</guid>
+      <description>&lt;p&gt;本篇较为深入的讲述了PHP的Opcode缓存原理。简要分析了PHP的脚本跟踪与分析技术。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>I/O多路复用</title>
+      <link>https://maodanp.github.io/2016/05/05/io-multiplexing/</link>
+      <pubDate>Thu, 05 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/05/io-multiplexing/</guid>
+      <description>&lt;p&gt;I/O多路复用是常用的服务器I/O模型，包括select/poll/epoll等方式。本篇针对这几种方式的优缺点分别做讲解。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>服务器的I/O模型</title>
+      <link>https://maodanp.github.io/2016/05/01/io-model/</link>
+      <pubDate>Sun, 01 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/01/io-model/</guid>
+      <description>&lt;p&gt;I/O模型的设计是后台服务能否支持高并发的至关因素。好的服务器性能必然需要良好的IO模型作为支撑。本篇重新复习下服务器常用的IO模型。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Golang — 面向对象语言(方法、接口、匿名组合)</title>
+      <link>https://maodanp.github.io/2016/04/30/golang-interface/</link>
+      <pubDate>Sat, 30 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/30/golang-interface/</guid>
+      <description>&lt;p&gt;初学Golang时，一直困惑其中的&lt;code&gt;struct类型&lt;/code&gt;是否等同于面向对象中的object, &lt;code&gt;interface&lt;/code&gt;是否等同于多态。下面来好好扒一扒Golang与面向对象的关系。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang中域名解析问题</title>
+      <link>https://maodanp.github.io/2016/04/28/golang-resolve/</link>
+      <pubDate>Thu, 28 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/28/golang-resolve/</guid>
+      <description>&lt;p&gt;在近期的Golang项目中遇到过类似这样的报错信息：&lt;code&gt;lookup www.baidu.com on 10.10.100.1:53 no such host&lt;/code&gt;. 本篇就来说说golang中域名解析遇到的问题。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>apache配置与性能</title>
+      <link>https://maodanp.github.io/2016/04/25/apache-conf/</link>
+      <pubDate>Mon, 25 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/25/apache-conf/</guid>
+      <description>&lt;p&gt;本篇将通过apache的配置项，结合实际应用，直观感受这些配置参数对吞吐量的影响。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>ApacheBench(ab)压力测试</title>
+      <link>https://maodanp.github.io/2016/04/24/apache-bench/</link>
+      <pubDate>Sun, 24 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/04/24/apache-bench/</guid>
+      <description>&lt;p&gt;通常考察服务器性能都离不开高并发、高吞吐率，本文主要描述了一些基本的概念，并通过ab压测分析其中的影响因素。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang错误处理(二)</title>
+      <link>https://maodanp.github.io/2015/04/15/error-handling-in-go-part-ii/</link>
+      <pubDate>Fri, 15 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/04/15/error-handling-in-go-part-ii/</guid>
+      <description>&lt;p&gt;该篇作为系列(二)，自然要更深入一层。本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/11/error-handling-in-go-part-ii.html&#34;&gt;Error Handling In Go, Part II&lt;/a&gt;，作者在该篇中将教我们怎么写自定义error接口，并且根据error如何识别具体的错误。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang错误处理(一)</title>
+      <link>https://maodanp.github.io/2015/04/12/error-handling-in-go-part-i/</link>
+      <pubDate>Tue, 12 Apr 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/04/12/error-handling-in-go-part-i/</guid>
+      <description>&lt;p&gt;Golang中Error作为返回值是很常见的，几乎每个函数返回值都有error的interface。本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/10/error-handling-in-go-part-i.html&#34;&gt;Error Handling In Go, Part I&lt;/a&gt;，作者在该篇中对error接口的创建、使用等做了详细描述。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>golang参数传递</title>
+      <link>https://maodanp.github.io/2016/03/15/using-pointers-in-go/</link>
+      <pubDate>Tue, 15 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/03/15/using-pointers-in-go/</guid>
+      <description>&lt;p&gt;以前在C/C++中，都知道传参时何时传值、指针、引用。那在Golang中的规则又是怎样的呢？对于参数传递是否有统一的规范呢？本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/12/using-pointers-in-go.html&#34;&gt;Using Pointers In *Go&lt;/a&gt;，作者总结出的方法一定让你受益匪浅。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>理解golang中的切片</title>
+      <link>https://maodanp.github.io/2016/03/01/understanding-slices-in-go-programming/</link>
+      <pubDate>Tue, 01 Mar 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/03/01/understanding-slices-in-go-programming/</guid>
+      <description>&lt;p&gt;Golang的初学者有时会被slice所困扰，不理解其内部原理，使用起来总是担心是否有复制的开销。 本文翻译自&lt;a href=&#34;https://www.goinggo.net/2013/08/understanding-slices-in-go-programming.html&#34;&gt;Understanding Slices in Go Programming&lt;/a&gt;，作者对其内部原理作了深入分析。相信读完将会有不一样的感受。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>Linux防火墙</title>
+      <link>https://maodanp.github.io/2015/07/07/linux-iptables/</link>
+      <pubDate>Tue, 07 Jul 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/07/07/linux-iptables/</guid>
+      <description>&lt;p&gt;在工作中常常涉及到防火墙的概念，基本网络不通或者服务无法连接首先就会想到是否是防火墙的原因。当然这里所说的防火墙是Linux系统内核继承的IP信息包过滤系统Netfiter/iptables。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>简单分布式服务器框架</title>
+      <link>https://maodanp.github.io/2015/06/18/distrubuted-server/</link>
+      <pubDate>Thu, 18 Jun 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/06/18/distrubuted-server/</guid>
+      <description>&lt;p&gt;最近工作中接触到分布式服务器，现针对学到的作简要概述, 分布式服务器之路刚起步。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>setopt简介</title>
+      <link>https://maodanp.github.io/2015/05/20/introduce-of-setopt/</link>
+      <pubDate>Wed, 20 May 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/05/20/introduce-of-setopt/</guid>
+      <description>&lt;p&gt;在阅读别人的代码时，网络部分经常会遇到&lt;code&gt;setopt&lt;/code&gt;函数，下面关于几个生疏的选项作简要总结。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>非阻塞connect</title>
+      <link>https://maodanp.github.io/2015/06/18/network_connect/</link>
+      <pubDate>Wed, 13 May 2015 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2015/06/18/network_connect/</guid>
+      <description>&lt;p&gt;本文总结了关于非阻塞connect的处理细节，实现细节，作简要总结。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

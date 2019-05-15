@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="在阅读别人的代码时，网络部分经常会遇到setopt函数，下面关于几个生疏的选项作简要总结。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="setopt简介 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    setopt简介
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2015年05月20日 
+                </div>
+                <h1 class="post-title">setopt简介</h1>
+            </header>
+
+            <div class="post-content">
+                <p>在阅读别人的代码时，网络部分经常会遇到<code>setopt</code>函数，下面关于几个生疏的选项作简要总结。</p>
+
+<p>关于套接字选项的设置与获取的两个函数为：setsockopt、 getsockopt。涉及的套接字选项较多，以下结合笔者所认为较为重要的几个，做简要描述（内容摘录自《UNNIX网络编程》卷1 Ch7 套接字选项）。</p>
+
+<h3 id="so-error套接字选项">SO_ERROR套接字选项</h3>
+
+<p>当一个套接字上发生错误时，源自Berkeley的内核中的协议模块将该套接字名为so_error的变量设置为标准的Unix Exxx值中的一个，称之为该套接字的待处理错误（pending error）。内核能够以以下两种方式之一立即通知进程这个错误。</p>
+
+<ol>
+<li>如果进程阻塞在对该套接字的select调用上，那么无论是检查可读还是可写条件，select均返回并设置其中一个或所有两条条件。</li>
+<li>如果进程使用信号驱动式I/O模型，那就给进程或进程组产生一个SIGIO信号。</li>
+</ol>
+
+<p>进程然后可以通过访问SO_ERROR套接字选项获取so_error的值。so_error随后由内核复位为0（错误处理的例子可以参照 《非阻塞connect》）。
+当进程调用read且没有数据返回时，如果so_error为非0值，那么read返回-1，且errno被置为so_error的值。so_error随后由内核复位为0。 如果该套接字上有数据在排队等待读取，那么read返回那些数据而不是返回错误条件。
+如果在进程调用write时so_error为非零值，那么write返回一个-1且errno被设置为so_error的值。so_error随后由内核复位为0。</p>
+
+<h3 id="so-keepalive套接字选项">SO_KEEPALIVE套接字选项</h3>
+
+<p>给一个TCP套接字设置保持存活（keep-alive）选项后，如果2小时内在该套接字的任意方向上都没有数据的交互，TCP会自动给对端发送一个保持存活探测包（keep-alive probe）。这是一个对端必须响应的TCP包，它会导致以下三种情况之一：</p>
+
+<ol>
+<li>对端以期望的ACK响应。应用进程得不到通知(一切正常)，在又经过仍无动静的2小时后，TCP将发出另一个保持存活探测包。</li>
+<li>对端以RST响应，它告知本端TCP:对端已经崩溃且已经重启。该套接字的待处理错误被置为ECONNRESET，套接字本身则被关闭。</li>
+<li>对端对保持存活探测包没有任何响应。源自Berkeley的TCP将另外发送8个保持存活探测包，两两相隔75秒，试图得到一个回应，如果还没有回应，则放弃。</li>
+</ol>
+
+<h3 id="so-linger套接字选项">SO_LINGER套接字选项</h3>
+
+<p>本选项执行close函数对于面向连接的协议如何进行操作的。</p>
+
+<h4 id="服务器tcp不同条件检测">服务器TCP不同条件检测</h4>
+
+<p>情形1： 客户端TCP正主动发送数据</p>
+
+<ul>
+<li>服务器进程崩溃: 服务器TCP发送一个FIN，客户端通过使用select判断可读条件立即能检测出来。如果客户端再发送另一个数据包，服务器TCP就以RST响应。如果在客户端TCP收到RST后应用进程仍然试图写套接字，则客户端的套接字就给该进程发送一个SIGPIPE信号。</li>
+<li>服务器主机崩溃: 客户端TCP将超时，且套接字的待处理错误被置为ETIMEDOUT。</li>
+<li>服务器主机不可达: 客户端TCP将超时，且套接字的待处理错误被置为EHOSTUNREACH。</li>
+</ul>
+
+<p>情形2： 客户端TCP正主动接收数据</p>
+
+<ul>
+<li>服务器进程崩溃: 服务器TCP将发送一个FIN，我们将把它作为一个EOF读入（可能较早读入）。</li>
+<li>服务器主机崩溃: 客户端将停止数据接收。</li>
+<li>服务器主机不可达: 客户端将停止数据接收。</li>
+</ul>
+
+<p>情形3： 连接空闲，保持存活选项已设置</p>
+
+<ul>
+<li>服务器进程崩溃: 服务器TCP发送一个FIN，客户端通过使用select判断可读条件立即能检测出来。</li>
+<li>服务器主机崩溃: 在毫无动静2小时后，发送9个保持存活探测数据包，然后套接字的待处理错误被设置为ETIMEDOUT。</li>
+<li>服务器主机不可达: 在毫无动静2小时后，发送9个保持存活探测数据包，然后套接字的待处理错误被设置为EHOSTUNREACH。
+<br /></li>
+</ul>
+
+<p>情形4： 连接空闲，保持存活选项未设置</p>
+
+<ul>
+<li>服务器进程崩溃: 服务器TCP发送一个FIN，客户端通过使用select判断可读条件立即能检测出来。</li>
+<li>服务器主机崩溃: 无</li>
+<li>服务器主机不可达： 无</li>
+</ul>
+
+<p><strong>注：以上的客户端、服务器可互换，条件检测类似</strong></p>
+
+<h4 id="so-linger选项介绍">SO_LINGER选项介绍</h4>
+
+<p>SO_LINGER套接字选项使得我们可以改变close的默认设置。本选项要求在用户进程与内核间传递如下结构：</p>
+
+<pre><code>   struct linger
+   {
+       int l_onoff; /*0-关闭 1-打开*/
+       int l_linger; /*停留时间（posix单位为秒）*/
+   }
+</code></pre>
+
+<p>对setsockopt的调用将根据其中两个结构成员的值形成下列三种情形之一：
+* 如果l_onoff为 0，那么关闭本选项。l_linger的值被忽略，TCP的默认设置生效，即close立即返回。
+* 如果l_onoff为非0且l_linger为0，那么当close某个连接时TCP将中止该连接（TCP将丢弃保留在套接字发送缓冲区中的任何数据，并发送一个RST给对端，而没有通常的关闭时的四次握手，这样能够避免TCP的TIME_WAIT状态(这样有可能导致&rdquo;已失效的报文段&rdquo;被不正确的传到新的连接上)。
+* 如果l_onoff为非0且l_linger为非0值 ，那么当套接字关闭时内核将拖延一段时间（如果在套接字发送缓冲区中仍然留有数据，那么进程将投入睡眠，直到所有数据都发送完成且均被对方确认或者延迟事件到），如果套接字设置为非阻塞，那么它将不等待close完成，即使延迟时间为非0值。
+当使用SO_LINGER选项的这个特性时，应用进程检查close的返回值是非常重要的，因为如果在数据发送完并被确认前延迟时间到的话，close将返回EWOULDBLOCK错误，且套接字发送缓冲区中的任何残留数据都将被丢弃。</p>
+
+<h4 id="shutdown函数">shutdown函数</h4>
+
+<p>终止网络连接的通常方法是调用close函数。不过close有两个限制，却可以使用shutdown来避免。
+* close把描述符的引用计数减1，仅在该计数变成0时才关闭套接字。 使用shutdown则可以不管应用计数就激发TCP的正常连接终止序列。
+* close终止读和写两个方向的数据传送。既然TCP是全双工的，有时候我们需要告诉对端我们已经完成了数据传送。既使对端仍然有数据要发送给我们。</p>
+
+<pre><code>   int shutdown(int sockfd, int howto)
+</code></pre>
+
+<p>该函数的行为依赖于howto参数的值：</p>
+
+<ul>
+<li>SHUT_RD: 关闭连接的读这一半——套接字中不再有数据可接收，而且套接字接收缓冲区中的现有数据将被全部丢弃。进程不再对这样的套接字调用任何读函数。对一个TCP套接字这样调用shutdown函数后，由该套接字接收的来自对端的任何数据都被确认，然后悄然丢弃。
+SHUT_WR: 关闭连接的写这一半——对于TCP套接字，这称之为半关闭，当前留在套接字发送缓冲区中的数据将被发送掉，后跟TCP的正常终止序列。进程不再对这样的套接字调用任何写函数。</li>
+<li>SHUT_RDWR: 连接的读半部分和写半部分都关闭——这与调用shutdown两次等效；第一次调用指定SHUT_RD, 第二次调用指定SHUT_WR。</li>
+</ul>
+
+<h4 id="不同情形的close返回">不同情形的close返回</h4>
+
+<ul>
+<li>close默认操作</li>
+</ul>
+
+<p>默认的操作是close后立即返回，但是如果有数据残留在套接字发送缓冲区中，系统将试着把这些数据发送给对端。
+<img src="../../../../pic/2015/2015-05-20-introduce-of-setopt-1.png" alt="" /></p>
+
+<p>客户端的close可以在服务器读取套接字接收缓冲区中的剩余数据之前就返回。如果在服务器的应用进程读取这些剩余数据之前就崩溃，客户端进程就永远不会知道（客户端一直处于FINWAIT_1状态）。</p>
+
+<ul>
+<li>SO_LINGER指定延时时间</li>
+</ul>
+
+<p>客户端可以设置SO_LINGER套接字选项，指定一个正的延时时间。这种情况下客户端的close要到它的数据和FIN已被服务器主机的TCP确认后才返回（延时时间为一个较大的值）。</p>
+
+<p>然而，仍然会与close的默认操作存在同样的问题：在服务器应用进程读取剩余数据之前，服务器主机有可能崩溃，并且服务器应用进程永远不知道（如果SO_LINGER选项的值偏小，close仍然有可能在它的数据和FIN被服务器主机的TCP确认之前就返回，并且返回值为-1，errno为EWOULDBLOCK）。
+<img src="../../../../pic/2015/2015-05-20-introduce-of-setopt-2.png" alt="" /></p>
+
+<p>基本原则：设置SO_LINGER套接字选项后，close的唱功返回只是告诉我们先前发送的数据和FIN已经由对端TCP确认，而不能告诉我们对端的一样进成功已经读取了数据。</p>
+
+<ul>
+<li>shutdown关闭方式
+让客户知道服务器已经读取其数据的一个方法是改为shutdown（并设置它的第二个参数为SHUT_WR）而不是调用close，并等待服务器的close调用。
+<img src="../../../../pic/2015/2015-05-20-introduce-of-setopt-3.png" alt="" /></li>
+</ul>
+
+<p>比较这几种方式，可以在一下3个不同时机返回:</p>
+
+<ol>
+<li>close立即返回，根本不等待。</li>
+<li>close一直拖延到接收了对于客户端FIN的ACK才返回。</li>
+<li>后跟一个read调用的shutdown一直等到接收了服务器端的FIN才返回。</li>
+</ol>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《UNNIX网络编程》卷1 Ch7 套接字选项</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2015/05/20/introduce-of-setopt/">https://maodanp.github.io/2015/05/20/introduce-of-setopt/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/network/">
+                            <i class="fa fa-tags"></i>
+                            network
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2015/06/18/network_connect/">非阻塞connect</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年05月13日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2015/06/18/distrubuted-server/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2015/06/18/network_connect/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#so-error套接字选项">SO_ERROR套接字选项</a></li>
+<li><a href="#so-keepalive套接字选项">SO_KEEPALIVE套接字选项</a></li>
+<li><a href="#so-linger套接字选项">SO_LINGER套接字选项</a>
+<ul>
+<li><a href="#服务器tcp不同条件检测">服务器TCP不同条件检测</a></li>
+<li><a href="#so-linger选项介绍">SO_LINGER选项介绍</a></li>
+<li><a href="#shutdown函数">shutdown函数</a></li>
+<li><a href="#不同情形的close返回">不同情形的close返回</a></li>
+</ul></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

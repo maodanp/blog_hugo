@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>服务器模型 on Danping&#39;s blog</title>
+    <link>https://maodanp.github.io/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%A8%A1%E5%9E%8B/</link>
+    <description>Recent content in 服务器模型 on Danping&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-CN</language>
+    <copyright>Copyright (c) 2018. All rights reserved.</copyright>
+    <lastBuildDate>Thu, 05 May 2016 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://maodanp.github.io/tags/%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%A8%A1%E5%9E%8B/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>I/O多路复用</title>
+      <link>https://maodanp.github.io/2016/05/05/io-multiplexing/</link>
+      <pubDate>Thu, 05 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/05/io-multiplexing/</guid>
+      <description>&lt;p&gt;I/O多路复用是常用的服务器I/O模型，包括select/poll/epoll等方式。本篇针对这几种方式的优缺点分别做讲解。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>服务器的I/O模型</title>
+      <link>https://maodanp.github.io/2016/05/01/io-model/</link>
+      <pubDate>Sun, 01 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/05/01/io-model/</guid>
+      <description>&lt;p&gt;I/O模型的设计是后台服务能否支持高并发的至关因素。好的服务器性能必然需要良好的IO模型作为支撑。本篇重新复习下服务器常用的IO模型。&lt;/p&gt;</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="在近期的Golang项目中遇到过类似这样的报错信息：lookup www.baidu.com on 10.10.100.1:53 no such host. 本篇就来说说golang中域名解析遇到的问题。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="golang中域名解析问题 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    golang中域名解析问题
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2016年04月28日 
+                </div>
+                <h1 class="post-title">golang中域名解析问题</h1>
+            </header>
+
+            <div class="post-content">
+                <p>在近期的Golang项目中遇到过类似这样的报错信息：<code>lookup www.baidu.com on 10.10.100.1:53 no such host</code>. 本篇就来说说golang中域名解析遇到的问题。</p>
+
+<p>其中，<code>10.10.100.1</code>为公司内部的bind域名解析服务器。这个可是我编译上线版本，出这种问题我着实捏把汗。 这部分代码没改动，那肯定是golang的问题，早前同事遇到过类似问题，说Golang的1.4版本就没有这个问题。的确我用的是1.5版本的Go，于是立即用1.4编译后重新上线。</p>
+
+<h3 id="两种解析方式">两种解析方式</h3>
+
+<p>网上说Go在1.5版本中使用两种解析方式：</p>
+
+<ul>
+<li>纯Go语言实现的域名解析，从/etc/resolve.conf中取出本地dns地址列表，然后发送DNS请求并获得结果；</li>
+<li>使用cgo方式，最终会调用到c标准库的getaddrinfo或getnameinfo</li>
+</ul>
+
+<p>为何采用两种方式？ 因为Go在1.4与1.5的默认调用方式是不一样的，1.4版本中默认使用的是cgo的方式解析，在1.5版本中默认使用纯Go的域名解析。如果使用cgo的方式，则对于一个协程调用cgo的getAddrInfo方法，会阻塞一个系统线程；而GO得域名解析，只会消耗一个协程。所以在1.5以后版本中默认使用纯Go的解析。</p>
+
+<p>Go的net包中有这么一段注释（src/net/net.go）：</p>
+
+<blockquote>
+<p>Limit the number of concurrent cgo-using goroutines, because each will block an entire operating system thread. The usual culprit is resolving many DNS names in separate goroutines but the DNS server is not responding. Then the many lookups each use a different thread, and the system or the program runs out of threads.</p>
+</blockquote>
+
+<p>大致意思就是上面讲的一样。</p>
+
+<p>那么问题来了，为啥使用Go的解析方式反而报错？暂时没有办法，只能看Go的相关代码了。</p>
+
+<h3 id="纯go的域名解析方式">纯Go的域名解析方式</h3>
+
+<p>在业务代码中，调用的是 <code>lookupHost()</code> 函数，逐步跟踪，会调用到后续的<code>tryOneName()</code>。下面简要描述该函数的信息：</p>
+
+<pre><code>tryOneName(conf, fqdn, qtype)    //对所需解析的域名，依次使用 /etc/resolve.conf 中的DNS IP解析                   
+|---exchange(server, name, qtype, timeout)  //DNS请求(建立连接、dns报文格式封装、发送dns请求、获取请求)
+    |---writeDNSQuery                               
+    |---readDNSQuery
+|---answer(name, server, msg, qtype)    //解析获取到dns信息，解析出CNAME/A记录
+|---判断是否符合条件
+    if err == nil || msg.rcode == dnsRcodeSuccess || msg.rcode == dnsRcodeNameError &amp;&amp; msg.recursion_available {
+        return cname, rrs, err
+    }
+</code></pre>
+
+<p>Go的域名解析就是通过读取<code>/etc/resolve.conf</code>的dns server, 然后通过DNS的解析流程，依次获取记录，如果首个dns server返回失败，则选第二个dns server，依次进行。 如果首个dns server解析成功了（dnsRcodeSuccess），则解析就算成功。</p>
+
+<p>线上环境的 <code>/etc/resolve.conf</code> 为：</p>
+
+<pre><code>10.10.100.11
+8.8.8.8 
+114.114.114.114
+</code></pre>
+
+<p>在<code>tryOneName()</code>中加打印信息，确实能在内部dns server中返回成功。</p>
+
+<p>那么问题来了，是内网的dns server出问题了？ 但是内网大家用的都是正常的啊。问题在哪里呢？</p>
+
+<h3 id="bind域名解析器">Bind域名解析器</h3>
+
+<p>内网的dns解析使用的bind，为了模拟线上的Bind，我也装了一个dns服务，且配置与内网的相同。<code>options</code>部分如下：</p>
+
+<pre><code>options {
+     allow-query { any; };
+     allow-query-cache { any; };
+     recursion yes;
+     allow-recursion { none; };
+     version &quot;gaint-d1&quot;;
+ }   
+</code></pre>
+
+<p>内网配置很纳闷。既然允许递归，但是允许递归的白名单(allow-recursion为none),实际上还是不允许递归的。关键就在<code>allow-query-cache</code>这个字段了。如果关闭(设置为none)或者不设置这个字段，Go解析尽然正常了；否则上述方式，Go解析不到主机。</p>
+
+<p>开启<code>allow-query-cache</code>， dig了一下，发现返回的错误码是NOERROR，且返回一串root dns server的信息； 而关闭该字段，则返回REFUSE. 这就是关键了，该字段是起缓存作用。</p>
+
+<p><img src="../../../../pic/2016/2016-04-28-golang-resolve-1.png" alt="" /></p>
+
+<p>开启<code>allow-query-cache</code></p>
+
+<p><img src="../../../../pic/2016/2016-04-28-golang-resolve-2.png" alt="" /></p>
+
+<p>不开启<code>allow-query-cache</code></p>
+
+<p><strong>如果缓存中没有所需查询的域名记录信息，则会将root dns server的信息返回（相当于告诉你，去rootserver查询吧）；否则表示没查到，返回查询失败</strong>。</p>
+
+<h3 id="解决方案">解决方案</h3>
+
+<p>问题是找到了，那基于目前的怎么解决呢？</p>
+
+<ul>
+<li>修改内网的bind配置，去掉 <code>allow-query-cache</code> （这个运维负责人表示不干，万一影响其他服务的域名解析呢？）</li>
+<li>回退Go的版本，线上一律使用1.4版本（这个不就体验不到1.5以上的版本性能了么）</li>
+<li>仍然使用1.5版本编译，在编译之前添加： <code>export GODEBUG=netdns=cgo</code> (目前折中方案就是这条了)</li>
+</ul>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2016/04/28/golang-resolve/">https://maodanp.github.io/2016/04/28/golang-resolve/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/golang/">
+                            <i class="fa fa-tags"></i>
+                            golang
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2016/09/11/golang-https-proxy/">创建基于proxy的HTTP(s)连接</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月11日)</span></li><li id="li-rels"><a href="/2016/09/04/go/">golang中context包</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年09月04日)</span></li><li id="li-rels"><a href="/2016/04/30/golang-interface/">Golang — 面向对象语言(方法、接口、匿名组合)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月30日)</span></li><li id="li-rels"><a href="/2015/04/15/error-handling-in-go-part-ii/">golang错误处理(二)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月15日)</span></li><li id="li-rels"><a href="/2015/04/12/error-handling-in-go-part-i/">golang错误处理(一)</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年04月12日)</span></li><li id="li-rels"><a href="/2016/03/15/using-pointers-in-go/">golang参数传递</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年03月15日)</span></li><li id="li-rels"><a href="/2016/03/01/understanding-slices-in-go-programming/">理解golang中的切片</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2016年03月01日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous"><a href="/2016/04/30/golang-interface/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2016/04/25/apache-conf/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#两种解析方式">两种解析方式</a></li>
+<li><a href="#纯go的域名解析方式">纯Go的域名解析方式</a></li>
+<li><a href="#bind域名解析器">Bind域名解析器</a></li>
+<li><a href="#解决方案">解决方案</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

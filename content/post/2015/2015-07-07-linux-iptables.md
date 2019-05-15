@@ -40,7 +40,7 @@ iptables提供一些列的表，每个表由若干条链组成，每条链中可
 
 数据在网络协议栈中的基本流程如下：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-07-07-linux-iptables-1.png)
+![](../../../../pic/2015/2015-07-07-linux-iptables-1.png)
 
 对于收到的每个数据包，都从“A”点进来，经过路由判决，如果是发送给本机的就经过“B”点，然后往协议栈的上层继续传递；否则，如果该数据包的目的地是不本机，那么就经过“C”点，然后顺着“E”点将该包转发出去。
 
@@ -48,13 +48,13 @@ iptables提供一些列的表，每个表由若干条链组成，每条链中可
 
 Netfilter是Linux 2.4.x引入的一个子系统，它作为一个通用的、抽象的框架，提供一整套的hook函数的管理机制，使得诸如数据包过滤、网络地址转换(NAT)和基于协议类型的连接跟踪成为了可能。Netfilter在内核中位置如下图所示：
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-07-07-linux-iptables-2.png)
+![](../../../../pic/2015/2015-07-07-linux-iptables-2.png)
 
 上图很直观的反应了用户空间的iptables和内核空间的基于Netfilter的iptables模块之间的关系和其通讯方式，以及Netfilter在这其中所扮演的角色。
 
 Netfilter在netfilter_ipv4.h中将这个五个点重新命了个名，如下图所示:
 
-![](http://7xt5nc.com1.z0.glb.clouddn.com/pic/2015/2015-07-07-linux-iptables-3.png)
+![](../../../../pic/2015/2015-07-07-linux-iptables-3.png)
 
 即对于数据包而言的几个流向分别为：
 
