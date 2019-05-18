@@ -6,7 +6,7 @@ echo "Deploying myblog to github"
 hugo
 
 # copy some static content to ./docs to publish
-cp -rf ./cp_to_docs/* ./docs/
+cp -rf ./static/pic ./docs/
 
 git add -A :/
 
@@ -25,4 +25,17 @@ fi
 git push origin master
 
 # copy docs folder to maodanp.github.io repo
-copy ./docs/* ../maodanp.github.io/
+cp -r ./docs/* ../maodanp.github.io/
+
+
+# enter maodanp.github.io repo
+cd ../maodanp.github.io/
+
+git add -a .
+
+
+if [ $# -eq 1 ]; then
+    git commit -m "$1"
+else
+    git commit
+fi

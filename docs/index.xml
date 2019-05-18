@@ -5,8 +5,88 @@
     <language>en-us</language>
     <author></author>
     <rights>(C) 2019</rights>
-    <updated>2019-05-15 00:00:00 &#43;0000 UTC</updated>
+    <updated>2019-05-18 00:00:00 &#43;0000 UTC</updated>
 
+    
+      
+        <item>
+          <title>笔记法总结</title>
+          <link>https://maodanp.github.io/2019/05/18/notes-summary/</link>
+          <pubDate>Sat, 18 May 2019 00:00:00 UTC</pubDate>
+          <author></author>
+          <guid>https://maodanp.github.io/2019/05/18/notes-summary/</guid>
+          <description>&lt;p&gt;职场五六年，对如何做笔记也有自己的一点心得体会，这里总结对自己有帮忙的方法。&lt;/p&gt;
+
+&lt;h3 id=&#34;笔记的结构体系&#34;&gt;笔记的结构体系&lt;/h3&gt;
+
+&lt;p&gt;笔记记录的越多，就感觉越庞杂，为笔记建立一个简单，有效的整理体系是非常必要的。该体系的大概运作流程为：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;收集&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;将获得的数据、知识放入笔记的的「inbox」组中。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;整理与完善&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;将「inbox」中的笔记进行编辑、整理、完善（如笔记总结，内容标题修改，添加标签等）。 将编辑好之后的笔记放置到对应类别的笔记本中。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;应用&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;定时翻看，记忆笔记。特别是对自己重要的或者自己专业的笔记，需要转化为实践，通过实践应用，与他人分享或者写技术文章等等。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;归档&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;对于已经内化为自己的知识，可以放在归档的目录中，或者删除，为后续学习腾出空间。&lt;/p&gt;
+
+&lt;p&gt;对笔记的分类可以参考&lt;a href=&#34;https://zh.wikipedia.org/wiki/杜威十进制图书分类法&#34;&gt;十进制图书分类法&lt;/a&gt;为笔记分层级。对于文件夹而言，层级有三位数，表示三个层级。&lt;/p&gt;
+
+&lt;p&gt;第一层级用100、200、300&amp;hellip;&amp;hellip;表示最大分类；到第二层级，表示第一层级下面的子分类，比如100下面有110、120、130&amp;hellip;&amp;hellip;；到第三层表示第二层的子分类，也是最小的一层分类，在该目录下就可以放相关笔记了。&lt;/p&gt;
+
+&lt;h3 id=&#34;康奈尔笔记法&#34;&gt;康奈尔笔记法&lt;/h3&gt;
+
+&lt;p&gt;康奈尔学习笔记法适合学生或者职场充电者，能够有效的提升学习能力。&lt;/p&gt;
+
+&lt;p&gt;该笔记法包括记录（Record）、简化（Reduce）、背诵（Recite）、思考（Reflect）、复习（Review）, 所以该笔记法又称为&lt;code&gt;5R&lt;/code&gt;笔记法&lt;/p&gt;
+
+&lt;p&gt;印象笔记模板中有现成的康奈尔笔记法模板，可以直接拿来就用，但是模板只是形式，关键还是看怎么利用。&lt;/p&gt;
+
+&lt;p&gt;下面是我的我学习一个技术点的康奈尔笔记总结：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2019-05-18-notes-summary.png&#34; alt=&#34;康奈尔笔记&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;文稿中的图，第一部分叫做提示栏，第二部分为笔记栏，第三部分为总结栏。&lt;/p&gt;
+
+&lt;p&gt;第一步：记录（Record）&lt;/p&gt;
+
+&lt;p&gt;将你听到的或者看到的记在右边的笔记栏，当然不是照搬全文，而是在理解的基础上记录觉得对自己有用的，或者跟主题相关的。&lt;/p&gt;
+
+&lt;p&gt;第二步：简化（Reduce）&lt;/p&gt;
+
+&lt;p&gt;这一步考察了我们的提炼和概括的能力。简化可以从两方面入手：
+第一是寻找主题词，即根据主题中各个小的主题概括；第二是以问题为导向进行概括、简化。&lt;/p&gt;
+
+&lt;p&gt;第三步：背诵（Recite）&lt;/p&gt;
+
+&lt;p&gt;写完两栏笔记之后，第三步需要做的是背诵，背诵的目的就是为了记忆，以便内化成自己的知识，在记忆过程中，遮住右侧的笔记栏，用提示栏中的概要提示，尽量完整的复述右侧的内容。&lt;/p&gt;
+
+&lt;p&gt;第四步：思考（Reflect）&lt;/p&gt;
+
+&lt;p&gt;背诵完后，就可以写总结栏了，这一步写下的东西应该是笔记内容的浓缩和升华，如果有能给力还可以加上自己对笔记内容的思考，提炼出自己的原创观点。&lt;/p&gt;
+
+&lt;p&gt;第五步：复习（Review）&lt;/p&gt;
+
+&lt;p&gt;复习是必不可少的一步，可以按照时间与需求进行复习。&lt;/p&gt;
+
+&lt;p&gt;按时间复习建议分别在记完笔记的当天、第二天、一周后、一个月后进行复习，进行不断的重复与强化记忆将更加牢固。一个月后，可以按需求复习，如果笔记上的内容在工作中用到了，在需要时可以将笔记拿出来复习。&lt;/p&gt;</description>
+        </item>
+      
     
       
         <item>
