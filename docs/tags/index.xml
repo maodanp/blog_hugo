@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Fri, 16 Sep 2016 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 19 May 2019 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://maodanp.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>linux</title>
+      <link>https://maodanp.github.io/tags/linux/</link>
+      <pubDate>Sun, 19 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/tags/linux/</guid>
+      <description></description>
+    </item>
     
     <item>
       <title>redis</title>
@@ -45,15 +54,6 @@
       <pubDate>Sun, 11 Sep 2016 00:00:00 +0000</pubDate>
       
       <guid>https://maodanp.github.io/tags/%E4%BB%A3%E7%90%86/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>linux</title>
-      <link>https://maodanp.github.io/tags/linux/</link>
-      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://maodanp.github.io/tags/linux/</guid>
       <description></description>
     </item>
     

@@ -5,8 +5,426 @@
     <language>en-us</language>
     <author></author>
     <rights>(C) 2019</rights>
-    <updated>2019-05-18 00:00:00 &#43;0000 UTC</updated>
+    <updated>2019-05-19 00:00:00 &#43;0000 UTC</updated>
 
+    
+      
+        <item>
+          <title>目标文件的那些事</title>
+          <link>https://maodanp.github.io/2019/05/19/linux-elf/</link>
+          <pubDate>Sun, 19 May 2019 00:00:00 UTC</pubDate>
+          <author></author>
+          <guid>https://maodanp.github.io/2019/05/19/linux-elf/</guid>
+          <description>&lt;p&gt;本篇主要探讨目标文件（Linux中的ELF）的内部结构，并对神秘目标文件一探究竟。&lt;/p&gt;
+
+&lt;h3 id=&#34;elf-文件结构概述&#34;&gt;ELF 文件结构概述&lt;/h3&gt;
+
+&lt;p&gt;我们知道可执行文件的形成需要经过&lt;code&gt;预编译&lt;/code&gt;、&lt;code&gt;编译&lt;/code&gt;、&lt;code&gt;汇编&lt;/code&gt;、&lt;code&gt;链接&lt;/code&gt;，最终形成可执行文件。&lt;/p&gt;
+
+&lt;p&gt;目标文件即为编译后生成的文件，它从文件结构上而言跟最终可执行文件是类似的，可能有些符号或者地址还需要调整。&lt;/p&gt;
+
+&lt;p&gt;Linux中ELF（Executable linkable Format）文件包括以下4类：&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;ELF文件类型&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;可重定位文件（Relocatable File）&lt;/td&gt;
+&lt;td&gt;其中包含数据与代码段，被用来链接生成可执行文件，静态链接库也归为这一类&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;可执行文件（Executable File）&lt;/td&gt;
+&lt;td&gt;最终可执行程序&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;共享目标文件（Shared object File）&lt;/td&gt;
+&lt;td&gt;包含数据和代码&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;核心转储文件（Core dump File）&lt;/td&gt;
+&lt;td&gt;由于进程意外终止形成的文件，包括进程地址空间及终止时的一些其他信息&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h4 id=&#34;解析目标文件&#34;&gt;解析目标文件&lt;/h4&gt;
+
+&lt;p&gt;通过以下的一个实例来解析下目标文件中包括哪些内容。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;/*
+ * example.c
+ * gcc -c example.c
+ */
+int printf(const char* format, ...);
+
+int global_int_var = 84; 
+int global_unint_var;
+
+void fun1(int i)
+{
+    printf(&amp;quot;%d\n&amp;quot;, i); 
+}
+
+int main(void)
+{
+    static int static_var = 85; 
+    static int static_var2;
+
+    int a = 1;
+    int b;
+
+    func1(static_var + static_var2 + a + b); 
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;global_int_var&lt;/code&gt;与&lt;code&gt;global_unint_var&lt;/code&gt;分别表示已初始化和未被初始化的全局静态变量。
+&lt;code&gt;static_var&lt;/code&gt;与&lt;code&gt;static_var2&lt;/code&gt;分别表示已初始化和未被初始化的局部静态变量。
+&lt;code&gt;a&lt;/code&gt;和&lt;code&gt;b&lt;/code&gt;分别表示已初始化和未被初始化的局部变量。&lt;/p&gt;
+
+&lt;p&gt;我们可以观察上面几个变量在目标文件中是怎么存储的。通过&lt;code&gt;objdump -h example.o&lt;/code&gt; 可以查看该ELF的结构和内容。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         0000004c  00000000  00000000  00000034  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  1 .data         00000008  00000000  00000000  00000080  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .bss          00000004  00000000  00000000  00000088  2**2
+                  ALLOC
+  3 .rodata       00000004  00000000  00000000  00000088  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  4 .comment      0000002e  00000000  00000000  0000008c  2**0
+                  CONTENTS, READONLY
+  5 .note.GNU-stack 00000000  00000000  00000000  000000ba  2**0
+                  CONTENTS, READONLY
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;我用了32位的系统测试，所以对于64位，ELF的段结构会有差异。对照段长度（Size）和偏移位置（File Offset）可以得出如下结构图：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2019-05-19-elf-1.png&#34; alt=&#34;pic&#34; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&#34;段结构&#34;&gt;段结构&lt;/h4&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;ELF头文件（ELF header）&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;描述整个文件的属性，包括文件是否可执行，是静态链接还是动态链接，目标硬件、目标操作系统。从上图可以看出，头文件的大小是固定的，为0x34个字节，后面一小节会有专门介绍。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;段表（Section Table）&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;描述文件中各个段的一个数组。描述各段在文件中偏移量、读写权限及段属性。后面一小节再专门介绍。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;代码段（.text）&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;保存执行语句编译后生成的机器代码&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;数据段（.data）与只读数据段（.rodata）&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;保存已经初始化的全局变量和局部静态变量。只读数据段则保存程序里的只读变量。&lt;/p&gt;
+
+&lt;p&gt;通过命令：&lt;code&gt;objdump -x -s -d exmpale.o&lt;/code&gt;， 可以查看到数据段：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;......
+Contents of section .data:
+ 0000 54000000 55000000                    T...U...
+Contents of section .rodata:
+ 0000 25640a00                             %d..
+......
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以看到 &lt;code&gt;.data&lt;/code&gt; 的前4个字节，从低到高分别为 0x54, 0x00, 0x00, 0x00，刚好是 &lt;code&gt;global_int_var&lt;/code&gt; , 十进制 84。后面4个字节则刚好是 &lt;code&gt;static_var&lt;/code&gt; 的值 85。&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;现代PC的CUP中都是Little-Endian。Little-endian 规定MSB在存储是放在高地址，传输时放在流的末尾；LSB存储时放在低地址，传输时放在流的开始。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code&gt;.rodata&lt;/code&gt; 段则是一个常量字符串 &lt;code&gt;%d\n&lt;/code&gt; 外加结束符。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;.bss段&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;保存未初始化的全局变量和局部静态变量。理论上应该存储 &lt;code&gt;global_uninit_var&lt;/code&gt; 和 &lt;code&gt;static_var2&lt;/code&gt; 的总大小8字节，但是这里确只有4个字节。&lt;/p&gt;
+
+&lt;p&gt;这里编译器将 &lt;code&gt;global_uninit_var&lt;/code&gt; 看作了一个未定义的全局变量符号，等到最终链接成可执行文件时才会再在 &lt;code&gt;.bss&lt;/code&gt; 段中分配空间。&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;编译器默认的函数和初始化了的全局变量作为强符号，未初始化的全局变量作为弱符号。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code&gt;Idx Name          Size      VMA       LMA       File off  Algn
+......
+  2 .bss          00000004  00000000  00000000  00000088  2**2
+......
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;elf-文件结构详述&#34;&gt;ELF 文件结构详述&lt;/h3&gt;
+
+&lt;p&gt;这里我先将这个ELF的文件中所有的段位置、长度都画出来，中间的 &lt;code&gt;Section Table&lt;/code&gt; 以及 &lt;code&gt;.real.text&lt;/code&gt; 都由于对齐原因与前面的段之间分别有一个字节的间隔。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2019-05-19-elf-2.png&#34; alt=&#34;pic&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;最后 &lt;code&gt;.real.text&lt;/code&gt; 结束后长度为 0x450, 恰好是 &lt;code&gt;example.o&lt;/code&gt; 的文件大小。下面分别描述这些不同的段结构信息。&lt;/p&gt;
+
+&lt;h4 id=&#34;elf头文件-elf-header&#34;&gt;ELF头文件 （ELF Header）&lt;/h4&gt;
+
+&lt;p&gt;通过 &lt;code&gt;readelf -h example.o&lt;/code&gt; 命令可以查看ELF头文件的具体信息。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;ELF Header:
+  Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
+  Class:                             ELF32
+  Data:                              2&#39;s complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           Intel 80386
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          268 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               52 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           40 (bytes)
+  Number of section headers:         11
+  Section header string table index: 8
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;分别对应了 &lt;code&gt;/usr/include/elf.h&lt;/code&gt; 中的头文件结构。分别定义了&lt;strong&gt;ELF魔数&lt;/strong&gt;、&lt;strong&gt;文件机器字节长度&lt;/strong&gt;、&lt;strong&gt;数据存储方式&lt;/strong&gt;、&lt;strong&gt;版本&lt;/strong&gt;、&lt;strong&gt;运行平台&lt;/strong&gt;、&lt;strong&gt;ABI版本&lt;/strong&gt;、&lt;strong&gt;ELF重定位类型&lt;/strong&gt;、&lt;strong&gt;硬件平台&lt;/strong&gt;、&lt;strong&gt;硬件平台版本&lt;/strong&gt;、&lt;strong&gt;入口地址&lt;/strong&gt;、&lt;strong&gt;程序头入口和长度&lt;/strong&gt;、&lt;strong&gt;段表的位置和长度&lt;/strong&gt;及&lt;strong&gt;段数量&lt;/strong&gt;等 。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;typedef struct
+{
+  unsigned char e_ident[EI_NIDENT]; /* Magic number and other info */
+  Elf32_Half    e_type;         /* Object file type */
+  Elf32_Half    e_machine;      /* Architecture */
+  Elf32_Word    e_version;      /* Object file version */
+  Elf32_Addr    e_entry;        /* Entry point virtual address */
+  Elf32_Off e_phoff;        /* Program header table file offset */
+  Elf32_Off e_shoff;        /* Section header table file offset */
+  Elf32_Word    e_flags;        /* Processor-specific flags */
+  Elf32_Half    e_ehsize;       /* ELF header size in bytes */
+  Elf32_Half    e_phentsize;        /* Program header table entry size */
+  Elf32_Half    e_phnum;        /* Program header table entry count */
+  Elf32_Half    e_shentsize;        /* Section header table entry size */
+  Elf32_Half    e_shnum;        /* Section header table entry count */
+  Elf32_Half    e_shstrndx;     /* Section header string table index */
+} Elf32_Ehdr;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中，&lt;code&gt;e_ident[EI_NIDENT]&lt;/code&gt; 即为ELF的魔数。各个字节含义见下表：&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;字节&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;7f&lt;/td&gt;
+&lt;td&gt;ASCII中DEL控制字符&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;45 4c 46&lt;/td&gt;
+&lt;td&gt;对应ELF三个字符的ASCII&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;01&lt;/td&gt;
+&lt;td&gt;32位系统， 02则表示64位&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;01&lt;/td&gt;
+&lt;td&gt;字节序&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;01&lt;/td&gt;
+&lt;td&gt;ELF主版本号&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h4 id=&#34;段表-section-header-table&#34;&gt;段表（Section Header Table）&lt;/h4&gt;
+
+&lt;p&gt;前面介绍过 &lt;code&gt;.text&lt;/code&gt;, &lt;code&gt;.data&lt;/code&gt; 等基本的段，这个段表就是用来保存这些段的基本属性。如每个段的段名、段长度、在文件中的偏移、读写权限以及段的其他属性。&lt;/p&gt;
+
+&lt;p&gt;通过 &lt;code&gt;readelf -S example.o&lt;/code&gt;可以看到所有的段表结构：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;There are 11 section headers, starting at offset 0x10c:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        00000000 000034 00004c 00  AX  0   0  4
+  [ 2] .rel.text         REL             00000000 000428 000028 08      9   1  4
+  [ 3] .data             PROGBITS        00000000 000080 000008 00  WA  0   0  4
+  [ 4] .bss              NOBITS          00000000 000088 000004 00  WA  0   0  4
+  [ 5] .rodata           PROGBITS        00000000 000088 000004 00   A  0   0  1
+  [ 6] .comment          PROGBITS        00000000 00008c 00002e 01  MS  0   0  1
+  [ 7] .note.GNU-stack   PROGBITS        00000000 0000ba 000000 00      0   0  1
+  [ 8] .shstrtab         STRTAB          00000000 0000ba 000051 00      0   0  1
+  [ 9] .symtab           SYMTAB          00000000 0002c4 000100 10     10  10  4
+  [10] .strtab           STRTAB          00000000 0003c4 000063 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings)
+  I (info), L (link order), G (group), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以上输出分别对应了 &lt;code&gt;/usr/include/elf.h&lt;/code&gt; 中的段表文件结构。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;typedef struct
+{
+  Elf32_Word    sh_name;        /* Section name (string tbl index) */
+  Elf32_Word    sh_type;        /* Section type */
+  Elf32_Word    sh_flags;       /* Section flags */
+  Elf32_Addr    sh_addr;        /* Section virtual addr at execution */
+  Elf32_Off sh_offset;      /* Section file offset */
+  Elf32_Word    sh_size;        /* Section size in bytes */
+  Elf32_Word    sh_link;        /* Link to another section */
+  Elf32_Word    sh_info;        /* Additional section information */
+  Elf32_Word    sh_addralign;       /* Section alignment */
+  Elf32_Word    sh_entsize;     /* Entry size if section holds table */
+} Elf32_Shdr;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h4 id=&#34;重定位表-relocatable-table&#34;&gt;重定位表（Relocatable Table）&lt;/h4&gt;
+
+&lt;p&gt;&lt;code&gt;.rel.text&lt;/code&gt; 为重定位表，即表示代码段中与一个需要重定位的代码段。&lt;code&gt;.rel.text&lt;/code&gt; 就是对 &lt;code&gt;.text&lt;/code&gt; 的重定位表，因为 &lt;code&gt;.text&lt;/code&gt; 中有对 &lt;code&gt;printf&lt;/code&gt; 外部函数的调用，需要在链接阶段重定位其实际函数地址。&lt;/p&gt;
+
+&lt;h4 id=&#34;字符串表-string-table&#34;&gt;字符串表（String Table）&lt;/h4&gt;
+
+&lt;p&gt;常见有 &lt;code&gt;.strtab&lt;/code&gt; 和 &lt;code&gt;.shstrtab&lt;/code&gt; 两种字符串表，分别表示为字符串表（string table）和段表字符串表（section header string table）。&lt;/p&gt;
+
+&lt;p&gt;字符串表存放普通字符串的，段表字符串表则是用来保存段表中用到的字符串名的。&lt;/p&gt;
+
+&lt;h4 id=&#34;符号表-symbol-table&#34;&gt;符号表（Symbol Table）&lt;/h4&gt;
+
+&lt;p&gt;整个链接过程正是基于符号才能正确完成，每一个目标文件都会有一个相应的符号表，这个表里记录了目标文件中所用到的所有符号。
+每个定义的符号有一个对应的值，对于函数和变量来说，这个符号值就是它们的地址。 &lt;code&gt;.symtab&lt;/code&gt; 中进行存储。&lt;/p&gt;
+
+&lt;p&gt;通过 &lt;code&gt;readelf -s example.o&lt;/code&gt; 命令可以查看ELF头文件的具体信息。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Symbol table &#39;.symtab&#39; contains 16 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 00000000     0 FILE    LOCAL  DEFAULT  ABS exmpale.c
+     2: 00000000     0 SECTION LOCAL  DEFAULT    1
+     3: 00000000     0 SECTION LOCAL  DEFAULT    3
+     4: 00000000     0 SECTION LOCAL  DEFAULT    4
+     5: 00000000     0 SECTION LOCAL  DEFAULT    5
+     6: 00000004     4 OBJECT  LOCAL  DEFAULT    3 static_var.1243
+     7: 00000000     4 OBJECT  LOCAL  DEFAULT    4 static_var2.1244
+     8: 00000000     0 SECTION LOCAL  DEFAULT    7
+     9: 00000000     0 SECTION LOCAL  DEFAULT    6
+    10: 00000000     4 OBJECT  GLOBAL DEFAULT    3 global_int_var
+    11: 00000004     4 OBJECT  GLOBAL DEFAULT  COM global_unint_var
+    12: 00000000    27 FUNC    GLOBAL DEFAULT    1 fun1
+    13: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+    14: 0000001b    49 FUNC    GLOBAL DEFAULT    1 main
+    15: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND func1
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以上输出分别对应了 &lt;code&gt;/usr/include/elf.h&lt;/code&gt; 中的符号表文件结构。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;typedef struct
+{
+  Elf32_Word    sh_name;        /* Section name (string tbl index) */
+  Elf32_Word    sh_type;        /* Section type */
+  Elf32_Word    sh_flags;       /* Section flags */
+  Elf32_Addr    sh_addr;        /* Section virtual addr at execution */
+  Elf32_Off sh_offset;      /* Section file offset */
+  Elf32_Word    sh_size;        /* Section size in bytes */
+  Elf32_Word    sh_link;        /* Link to another section */
+  Elf32_Word    sh_info;        /* Additional section information */
+  Elf32_Word    sh_addralign;       /* Section alignment */
+  Elf32_Word    sh_entsize;     /* Entry size if section holds table */
+} Elf32_Shdr;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中 &lt;code&gt;sh_info&lt;/code&gt; 为符号类型和绑定信息。其中低4位为符号类型，高4位位符号绑定信息。对应输出中的 &lt;code&gt;Type&lt;/code&gt; 与 &lt;code&gt;Bind&lt;/code&gt; 两项。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Type 类型&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;NOTYPE&lt;/td&gt;
+&lt;td&gt;未知类型符号&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;OBJECT&lt;/td&gt;
+&lt;td&gt;数据对象，如变量、数组&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;FUNC&lt;/td&gt;
+&lt;td&gt;函数或其他可执行代码&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;SECTION&lt;/td&gt;
+&lt;td&gt;表示一个段&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;FILE&lt;/td&gt;
+&lt;td&gt;表示文件名&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Bind 类型&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;LOCAL&lt;/td&gt;
+&lt;td&gt;局部符号，目标文件外部不可见&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;GLOBAL&lt;/td&gt;
+&lt;td&gt;全局符号，外部课件&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;</description>
+        </item>
+      
     
       
         <item>

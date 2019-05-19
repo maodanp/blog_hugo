@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本篇主要探讨目标文件（Linux中的ELF）的内部结构，并对神秘目标文件一探究竟。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="目标文件的那些事 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    目标文件的那些事
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2019年05月19日 
+                </div>
+                <h1 class="post-title">目标文件的那些事</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本篇主要探讨目标文件（Linux中的ELF）的内部结构，并对神秘目标文件一探究竟。</p>
+
+<h3 id="elf-文件结构概述">ELF 文件结构概述</h3>
+
+<p>我们知道可执行文件的形成需要经过<code>预编译</code>、<code>编译</code>、<code>汇编</code>、<code>链接</code>，最终形成可执行文件。</p>
+
+<p>目标文件即为编译后生成的文件，它从文件结构上而言跟最终可执行文件是类似的，可能有些符号或者地址还需要调整。</p>
+
+<p>Linux中ELF（Executable linkable Format）文件包括以下4类：</p>
+
+<table>
+<thead>
+<tr>
+<th>ELF文件类型</th>
+<th>说明</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>可重定位文件（Relocatable File）</td>
+<td>其中包含数据与代码段，被用来链接生成可执行文件，静态链接库也归为这一类</td>
+</tr>
+
+<tr>
+<td>可执行文件（Executable File）</td>
+<td>最终可执行程序</td>
+</tr>
+
+<tr>
+<td>共享目标文件（Shared object File）</td>
+<td>包含数据和代码</td>
+</tr>
+
+<tr>
+<td>核心转储文件（Core dump File）</td>
+<td>由于进程意外终止形成的文件，包括进程地址空间及终止时的一些其他信息</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="解析目标文件">解析目标文件</h4>
+
+<p>通过以下的一个实例来解析下目标文件中包括哪些内容。</p>
+
+<pre><code class="language-cpp">/*
+ * example.c
+ * gcc -c example.c
+ */
+int printf(const char* format, ...);
+
+int global_int_var = 84; 
+int global_unint_var;
+
+void fun1(int i)
+{
+    printf(&quot;%d\n&quot;, i); 
+}
+
+int main(void)
+{
+    static int static_var = 85; 
+    static int static_var2;
+
+    int a = 1;
+    int b;
+
+    func1(static_var + static_var2 + a + b); 
+}
+</code></pre>
+
+<p><code>global_int_var</code>与<code>global_unint_var</code>分别表示已初始化和未被初始化的全局静态变量。
+<code>static_var</code>与<code>static_var2</code>分别表示已初始化和未被初始化的局部静态变量。
+<code>a</code>和<code>b</code>分别表示已初始化和未被初始化的局部变量。</p>
+
+<p>我们可以观察上面几个变量在目标文件中是怎么存储的。通过<code>objdump -h example.o</code> 可以查看该ELF的结构和内容。</p>
+
+<pre><code>Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         0000004c  00000000  00000000  00000034  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  1 .data         00000008  00000000  00000000  00000080  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .bss          00000004  00000000  00000000  00000088  2**2
+                  ALLOC
+  3 .rodata       00000004  00000000  00000000  00000088  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  4 .comment      0000002e  00000000  00000000  0000008c  2**0
+                  CONTENTS, READONLY
+  5 .note.GNU-stack 00000000  00000000  00000000  000000ba  2**0
+                  CONTENTS, READONLY
+</code></pre>
+
+<p>我用了32位的系统测试，所以对于64位，ELF的段结构会有差异。对照段长度（Size）和偏移位置（File Offset）可以得出如下结构图：</p>
+
+<p><img src="/pic/2019/2019-05-19-elf-1.png" alt="pic" /></p>
+
+<h4 id="段结构">段结构</h4>
+
+<ul>
+<li><strong>ELF头文件（ELF header）</strong></li>
+</ul>
+
+<p>描述整个文件的属性，包括文件是否可执行，是静态链接还是动态链接，目标硬件、目标操作系统。从上图可以看出，头文件的大小是固定的，为0x34个字节，后面一小节会有专门介绍。</p>
+
+<ul>
+<li><strong>段表（Section Table）</strong></li>
+</ul>
+
+<p>描述文件中各个段的一个数组。描述各段在文件中偏移量、读写权限及段属性。后面一小节再专门介绍。</p>
+
+<ul>
+<li><strong>代码段（.text）</strong></li>
+</ul>
+
+<p>保存执行语句编译后生成的机器代码</p>
+
+<ul>
+<li><strong>数据段（.data）与只读数据段（.rodata）</strong></li>
+</ul>
+
+<p>保存已经初始化的全局变量和局部静态变量。只读数据段则保存程序里的只读变量。</p>
+
+<p>通过命令：<code>objdump -x -s -d exmpale.o</code>， 可以查看到数据段：</p>
+
+<pre><code>......
+Contents of section .data:
+ 0000 54000000 55000000                    T...U...
+Contents of section .rodata:
+ 0000 25640a00                             %d..
+......
+</code></pre>
+
+<p>可以看到 <code>.data</code> 的前4个字节，从低到高分别为 0x54, 0x00, 0x00, 0x00，刚好是 <code>global_int_var</code> , 十进制 84。后面4个字节则刚好是 <code>static_var</code> 的值 85。</p>
+
+<blockquote>
+<p>现代PC的CUP中都是Little-Endian。Little-endian 规定MSB在存储是放在高地址，传输时放在流的末尾；LSB存储时放在低地址，传输时放在流的开始。</p>
+</blockquote>
+
+<p><code>.rodata</code> 段则是一个常量字符串 <code>%d\n</code> 外加结束符。</p>
+
+<ul>
+<li><strong>.bss段</strong></li>
+</ul>
+
+<p>保存未初始化的全局变量和局部静态变量。理论上应该存储 <code>global_uninit_var</code> 和 <code>static_var2</code> 的总大小8字节，但是这里确只有4个字节。</p>
+
+<p>这里编译器将 <code>global_uninit_var</code> 看作了一个未定义的全局变量符号，等到最终链接成可执行文件时才会再在 <code>.bss</code> 段中分配空间。</p>
+
+<blockquote>
+<p>编译器默认的函数和初始化了的全局变量作为强符号，未初始化的全局变量作为弱符号。</p>
+</blockquote>
+
+<pre><code>Idx Name          Size      VMA       LMA       File off  Algn
+......
+  2 .bss          00000004  00000000  00000000  00000088  2**2
+......
+</code></pre>
+
+<h3 id="elf-文件结构详述">ELF 文件结构详述</h3>
+
+<p>这里我先将这个ELF的文件中所有的段位置、长度都画出来，中间的 <code>Section Table</code> 以及 <code>.real.text</code> 都由于对齐原因与前面的段之间分别有一个字节的间隔。</p>
+
+<p><img src="/pic/2019/2019-05-19-elf-2.png" alt="pic" /></p>
+
+<p>最后 <code>.real.text</code> 结束后长度为 0x450, 恰好是 <code>example.o</code> 的文件大小。下面分别描述这些不同的段结构信息。</p>
+
+<h4 id="elf头文件-elf-header">ELF头文件 （ELF Header）</h4>
+
+<p>通过 <code>readelf -h example.o</code> 命令可以查看ELF头文件的具体信息。</p>
+
+<pre><code>ELF Header:
+  Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
+  Class:                             ELF32
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           Intel 80386
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          268 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               52 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           40 (bytes)
+  Number of section headers:         11
+  Section header string table index: 8
+</code></pre>
+
+<p>分别对应了 <code>/usr/include/elf.h</code> 中的头文件结构。分别定义了<strong>ELF魔数</strong>、<strong>文件机器字节长度</strong>、<strong>数据存储方式</strong>、<strong>版本</strong>、<strong>运行平台</strong>、<strong>ABI版本</strong>、<strong>ELF重定位类型</strong>、<strong>硬件平台</strong>、<strong>硬件平台版本</strong>、<strong>入口地址</strong>、<strong>程序头入口和长度</strong>、<strong>段表的位置和长度</strong>及<strong>段数量</strong>等 。</p>
+
+<pre><code class="language-cpp">typedef struct
+{
+  unsigned char e_ident[EI_NIDENT]; /* Magic number and other info */
+  Elf32_Half    e_type;         /* Object file type */
+  Elf32_Half    e_machine;      /* Architecture */
+  Elf32_Word    e_version;      /* Object file version */
+  Elf32_Addr    e_entry;        /* Entry point virtual address */
+  Elf32_Off e_phoff;        /* Program header table file offset */
+  Elf32_Off e_shoff;        /* Section header table file offset */
+  Elf32_Word    e_flags;        /* Processor-specific flags */
+  Elf32_Half    e_ehsize;       /* ELF header size in bytes */
+  Elf32_Half    e_phentsize;        /* Program header table entry size */
+  Elf32_Half    e_phnum;        /* Program header table entry count */
+  Elf32_Half    e_shentsize;        /* Section header table entry size */
+  Elf32_Half    e_shnum;        /* Section header table entry count */
+  Elf32_Half    e_shstrndx;     /* Section header string table index */
+} Elf32_Ehdr;
+</code></pre>
+
+<p>其中，<code>e_ident[EI_NIDENT]</code> 即为ELF的魔数。各个字节含义见下表：</p>
+
+<table>
+<thead>
+<tr>
+<th>字节</th>
+<th>说明</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>7f</td>
+<td>ASCII中DEL控制字符</td>
+</tr>
+
+<tr>
+<td>45 4c 46</td>
+<td>对应ELF三个字符的ASCII</td>
+</tr>
+
+<tr>
+<td>01</td>
+<td>32位系统， 02则表示64位</td>
+</tr>
+
+<tr>
+<td>01</td>
+<td>字节序</td>
+</tr>
+
+<tr>
+<td>01</td>
+<td>ELF主版本号</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="段表-section-header-table">段表（Section Header Table）</h4>
+
+<p>前面介绍过 <code>.text</code>, <code>.data</code> 等基本的段，这个段表就是用来保存这些段的基本属性。如每个段的段名、段长度、在文件中的偏移、读写权限以及段的其他属性。</p>
+
+<p>通过 <code>readelf -S example.o</code>可以看到所有的段表结构：</p>
+
+<pre><code>There are 11 section headers, starting at offset 0x10c:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        00000000 000034 00004c 00  AX  0   0  4
+  [ 2] .rel.text         REL             00000000 000428 000028 08      9   1  4
+  [ 3] .data             PROGBITS        00000000 000080 000008 00  WA  0   0  4
+  [ 4] .bss              NOBITS          00000000 000088 000004 00  WA  0   0  4
+  [ 5] .rodata           PROGBITS        00000000 000088 000004 00   A  0   0  1
+  [ 6] .comment          PROGBITS        00000000 00008c 00002e 01  MS  0   0  1
+  [ 7] .note.GNU-stack   PROGBITS        00000000 0000ba 000000 00      0   0  1
+  [ 8] .shstrtab         STRTAB          00000000 0000ba 000051 00      0   0  1
+  [ 9] .symtab           SYMTAB          00000000 0002c4 000100 10     10  10  4
+  [10] .strtab           STRTAB          00000000 0003c4 000063 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings)
+  I (info), L (link order), G (group), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+</code></pre>
+
+<p>以上输出分别对应了 <code>/usr/include/elf.h</code> 中的段表文件结构。</p>
+
+<pre><code class="language-cpp">typedef struct
+{
+  Elf32_Word    sh_name;        /* Section name (string tbl index) */
+  Elf32_Word    sh_type;        /* Section type */
+  Elf32_Word    sh_flags;       /* Section flags */
+  Elf32_Addr    sh_addr;        /* Section virtual addr at execution */
+  Elf32_Off sh_offset;      /* Section file offset */
+  Elf32_Word    sh_size;        /* Section size in bytes */
+  Elf32_Word    sh_link;        /* Link to another section */
+  Elf32_Word    sh_info;        /* Additional section information */
+  Elf32_Word    sh_addralign;       /* Section alignment */
+  Elf32_Word    sh_entsize;     /* Entry size if section holds table */
+} Elf32_Shdr;
+</code></pre>
+
+<h4 id="重定位表-relocatable-table">重定位表（Relocatable Table）</h4>
+
+<p><code>.rel.text</code> 为重定位表，即表示代码段中与一个需要重定位的代码段。<code>.rel.text</code> 就是对 <code>.text</code> 的重定位表，因为 <code>.text</code> 中有对 <code>printf</code> 外部函数的调用，需要在链接阶段重定位其实际函数地址。</p>
+
+<h4 id="字符串表-string-table">字符串表（String Table）</h4>
+
+<p>常见有 <code>.strtab</code> 和 <code>.shstrtab</code> 两种字符串表，分别表示为字符串表（string table）和段表字符串表（section header string table）。</p>
+
+<p>字符串表存放普通字符串的，段表字符串表则是用来保存段表中用到的字符串名的。</p>
+
+<h4 id="符号表-symbol-table">符号表（Symbol Table）</h4>
+
+<p>整个链接过程正是基于符号才能正确完成，每一个目标文件都会有一个相应的符号表，这个表里记录了目标文件中所用到的所有符号。
+每个定义的符号有一个对应的值，对于函数和变量来说，这个符号值就是它们的地址。 <code>.symtab</code> 中进行存储。</p>
+
+<p>通过 <code>readelf -s example.o</code> 命令可以查看ELF头文件的具体信息。</p>
+
+<pre><code>Symbol table '.symtab' contains 16 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 00000000     0 FILE    LOCAL  DEFAULT  ABS exmpale.c
+     2: 00000000     0 SECTION LOCAL  DEFAULT    1
+     3: 00000000     0 SECTION LOCAL  DEFAULT    3
+     4: 00000000     0 SECTION LOCAL  DEFAULT    4
+     5: 00000000     0 SECTION LOCAL  DEFAULT    5
+     6: 00000004     4 OBJECT  LOCAL  DEFAULT    3 static_var.1243
+     7: 00000000     4 OBJECT  LOCAL  DEFAULT    4 static_var2.1244
+     8: 00000000     0 SECTION LOCAL  DEFAULT    7
+     9: 00000000     0 SECTION LOCAL  DEFAULT    6
+    10: 00000000     4 OBJECT  GLOBAL DEFAULT    3 global_int_var
+    11: 00000004     4 OBJECT  GLOBAL DEFAULT  COM global_unint_var
+    12: 00000000    27 FUNC    GLOBAL DEFAULT    1 fun1
+    13: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+    14: 0000001b    49 FUNC    GLOBAL DEFAULT    1 main
+    15: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND func1
+</code></pre>
+
+<p>以上输出分别对应了 <code>/usr/include/elf.h</code> 中的符号表文件结构。</p>
+
+<pre><code class="language-cpp">typedef struct
+{
+  Elf32_Word    sh_name;        /* Section name (string tbl index) */
+  Elf32_Word    sh_type;        /* Section type */
+  Elf32_Word    sh_flags;       /* Section flags */
+  Elf32_Addr    sh_addr;        /* Section virtual addr at execution */
+  Elf32_Off sh_offset;      /* Section file offset */
+  Elf32_Word    sh_size;        /* Section size in bytes */
+  Elf32_Word    sh_link;        /* Link to another section */
+  Elf32_Word    sh_info;        /* Additional section information */
+  Elf32_Word    sh_addralign;       /* Section alignment */
+  Elf32_Word    sh_entsize;     /* Entry size if section holds table */
+} Elf32_Shdr;
+</code></pre>
+
+<p>其中 <code>sh_info</code> 为符号类型和绑定信息。其中低4位为符号类型，高4位位符号绑定信息。对应输出中的 <code>Type</code> 与 <code>Bind</code> 两项。</p>
+
+<table>
+<thead>
+<tr>
+<th>Type 类型</th>
+<th>说明</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>NOTYPE</td>
+<td>未知类型符号</td>
+</tr>
+
+<tr>
+<td>OBJECT</td>
+<td>数据对象，如变量、数组</td>
+</tr>
+
+<tr>
+<td>FUNC</td>
+<td>函数或其他可执行代码</td>
+</tr>
+
+<tr>
+<td>SECTION</td>
+<td>表示一个段</td>
+</tr>
+
+<tr>
+<td>FILE</td>
+<td>表示文件名</td>
+</tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr>
+<th>Bind 类型</th>
+<th>说明</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>LOCAL</td>
+<td>局部符号，目标文件外部不可见</td>
+</tr>
+
+<tr>
+<td>GLOBAL</td>
+<td>全局符号，外部课件</td>
+</tr>
+</tbody>
+</table>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2019/05/19/linux-elf/">https://maodanp.github.io/2019/05/19/linux-elf/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/linux/">
+                            <i class="fa fa-tags"></i>
+                            linux
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2015/07/07/linux-iptables/">Linux防火墙</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年07月07日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous disabled"><a href="#"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2019/05/18/notes-summary/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#elf-文件结构概述">ELF 文件结构概述</a>
+<ul>
+<li><a href="#解析目标文件">解析目标文件</a></li>
+<li><a href="#段结构">段结构</a></li>
+</ul></li>
+<li><a href="#elf-文件结构详述">ELF 文件结构详述</a>
+<ul>
+<li><a href="#elf头文件-elf-header">ELF头文件 （ELF Header）</a></li>
+<li><a href="#段表-section-header-table">段表（Section Header Table）</a></li>
+<li><a href="#重定位表-relocatable-table">重定位表（Relocatable Table）</a></li>
+<li><a href="#字符串表-string-table">字符串表（String Table）</a></li>
+<li><a href="#符号表-symbol-table">符号表（Symbol Table）</a></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

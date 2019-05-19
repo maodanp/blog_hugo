@@ -31,7 +31,7 @@ cp -r ./docs/* ../maodanp.github.io/
 # enter maodanp.github.io repo
 cd ../maodanp.github.io/
 
-git add -a .
+git add .
 
 
 if [ $# -eq 1 ]; then
@@ -39,3 +39,5 @@ if [ $# -eq 1 ]; then
 else
     git commit
 fi
+
+git push origin master

@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Sun, 04 Sep 2016 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 19 May 2019 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://maodanp.github.io/tags/linux/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>目标文件的那些事</title>
+      <link>https://maodanp.github.io/2019/05/19/linux-elf/</link>
+      <pubDate>Sun, 19 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2019/05/19/linux-elf/</guid>
+      <description>&lt;p&gt;本篇主要探讨目标文件（Linux中的ELF）的内部结构，并对神秘目标文件一探究竟。&lt;/p&gt;</description>
+    </item>
     
     <item>
       <title>liunx性能检测常用命令(二)</title>
