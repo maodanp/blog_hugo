@@ -3,7 +3,6 @@ categories:
 - "技术志"
 tags:
 - 服务器性能
-- 压力测试
 date: 2016-04-24
 title: "ApacheBench(ab)压力测试"
 url: "/2016/04/24/apache-bench"

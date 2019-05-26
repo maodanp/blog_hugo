@@ -13,7 +13,7 @@
     
     
     <item>
-      <title>liunx性能检测常用命令(二)</title>
+      <title>Liunx性能检测常用命令(二)</title>
       <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
       <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
       
@@ -22,7 +22,7 @@
     </item>
     
     <item>
-      <title>liunx性能检测常用命令(一)</title>
+      <title>Liunx性能检测常用命令(一)</title>
       <link>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</link>
       <pubDate>Sat, 03 Sep 2016 00:00:00 +0000</pubDate>
       
@@ -46,15 +46,6 @@
       
       <guid>https://maodanp.github.io/2016/05/19/server-concurrent/</guid>
       <description>&lt;p&gt;技术是随着需求的发展而不断前进的，正如服务器的并发量。对于单台服务器而言，资源是有限的，采用何种并发策略最大限度的利用服务器的性能，提高其吞吐量也是值得研究的，本篇将详述服务器的几种并发策略。&lt;/p&gt;</description>
-    </item>
-    
-    <item>
-      <title>PHP动态脚本Opcode</title>
-      <link>https://maodanp.github.io/2016/05/10/opcode/</link>
-      <pubDate>Tue, 10 May 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://maodanp.github.io/2016/05/10/opcode/</guid>
-      <description>&lt;p&gt;本篇较为深入的讲述了PHP的Opcode缓存原理。简要分析了PHP的脚本跟踪与分析技术。&lt;/p&gt;</description>
     </item>
     
     <item>

@@ -3,7 +3,6 @@ categories:
 - "技术志"
 tags:
 - 服务器性能
-- apache
 date: 2016-04-25
 title: "apache配置与性能"
 url: "/2016/04/25/apache-conf"

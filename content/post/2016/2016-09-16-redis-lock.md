@@ -1,9 +1,6 @@
 ---
 categories:
 - "技术志"
-tags:
-- redis
-- 分布式锁
 date: 2016-09-16
 title: "基于redis的分布式锁的实现方案"
 url: "/2016/09/16/redis-lock"

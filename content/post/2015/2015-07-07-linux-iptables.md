@@ -3,7 +3,6 @@ categories:
 - "技术志"
 tags:
 - linux
-- iptables
 date: 2015-07-07
 title: "Linux防火墙"
 url: "/2015/07/07/linux-iptables"

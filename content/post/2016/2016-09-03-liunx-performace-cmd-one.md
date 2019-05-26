@@ -5,7 +5,7 @@ tags:
 - Linux
 - 服务器性能
 date: 2016-09-03
-title: "liunx性能检测常用命令(一)"
+title: "Liunx性能检测常用命令(一)"
 url: "/2016/09/03/linux-performace-cmd-one"
 ---
 

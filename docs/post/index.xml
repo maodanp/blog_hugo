@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Mon, 20 May 2019 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 26 May 2019 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://maodanp.github.io/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Linux的系统调用</title>
+      <link>https://maodanp.github.io/2019/05/26/linux-syscall/</link>
+      <pubDate>Sun, 26 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2019/05/26/linux-syscall/</guid>
+      <description>&lt;p&gt;系统调用是应用程序与操作系统内核之间的接口。本篇主要剖析 Linux 中系统调用的原理，详述系统调用从用户态到内核态的流程。&lt;/p&gt;</description>
+    </item>
     
     <item>
       <title>美国之行</title>
@@ -69,6 +78,15 @@
     </item>
     
     <item>
+      <title>Liunx性能检测常用命令(二)</title>
+      <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
+      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</guid>
+      <description>&lt;p&gt;&lt;a href=&#34;https://maodanp.github.io/2016/09/03/linux-performace-cmd-one&#34;&gt;前一篇&lt;/a&gt;讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>golang中context包</title>
       <link>https://maodanp.github.io/2016/09/04/go/</link>
       <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
@@ -78,16 +96,7 @@
     </item>
     
     <item>
-      <title>liunx性能检测常用命令(二)</title>
-      <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
-      <pubDate>Sun, 04 Sep 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</guid>
-      <description>&lt;p&gt;&lt;a href=&#34;https://maodanp.github.io/2016/09/03/linux-performace-cmd-one&#34;&gt;前一篇&lt;/a&gt;讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。&lt;/p&gt;</description>
-    </item>
-    
-    <item>
-      <title>liunx性能检测常用命令(一)</title>
+      <title>Liunx性能检测常用命令(一)</title>
       <link>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</link>
       <pubDate>Sat, 03 Sep 2016 00:00:00 +0000</pubDate>
       

@@ -5,8 +5,375 @@
     <language>en-us</language>
     <author></author>
     <rights>(C) 2019</rights>
-    <updated>2019-05-20 00:00:00 &#43;0000 UTC</updated>
+    <updated>2019-05-26 00:00:00 &#43;0000 UTC</updated>
 
+    
+      
+        <item>
+          <title>Linux的系统调用</title>
+          <link>https://maodanp.github.io/2019/05/26/linux-syscall/</link>
+          <pubDate>Sun, 26 May 2019 00:00:00 UTC</pubDate>
+          <author></author>
+          <guid>https://maodanp.github.io/2019/05/26/linux-syscall/</guid>
+          <description>&lt;p&gt;系统调用是应用程序与操作系统内核之间的接口。本篇主要剖析 Linux 中系统调用的原理，详述系统调用从用户态到内核态的流程。&lt;/p&gt;
+
+&lt;h3 id=&#34;系统调用介绍&#34;&gt;系统调用介绍&lt;/h3&gt;
+
+&lt;p&gt;系统调用是操作系统为应用程序提供的一套接口，不仅包含应用程序运行所必需的支持，例如创建/退出进程，进程内存管理，也有对系统资源的访问，如文件、网络、进程通信、硬件设备访问等。&lt;/p&gt;
+
+&lt;p&gt;系统调用作为接口，首先必需要有明确的定义，这样应用程序才能正确使用它，其次是需要保持向后兼容，以保证系统升级后原来的应用程序也能够正常的使用。&lt;/p&gt;
+
+&lt;h4 id=&#34;系统调用与运行库&#34;&gt;系统调用与运行库&lt;/h4&gt;
+
+&lt;p&gt;由于系统调用是各个操作系统提供的，所以会导致不同的操作系统的系统调用不能兼容，而且系统调用的接口相对比较原始，没有经过很好的封装。&lt;/p&gt;
+
+&lt;p&gt;运行库就是为了实现不同系统的兼容性，在系统调用与程序之间做了一层抽象层。作为语言级别的抽象库一般都封装的比较好，并且对于标准库，能够实现不同操作系统之间的兼容。&lt;/p&gt;
+
+&lt;p&gt;例如 Linux 下的 &lt;code&gt;read/write&lt;/code&gt; 系统调用在 C 语言中是 &lt;code&gt;fread/fwrite&lt;/code&gt; 标准库, 在 C++ 中是&lt;code&gt;iofstream&lt;/code&gt; 标准库。但是运行库为了各个操作系统之间的兼容性，只能取各平台的交集，但是一些系统独有的系统调用就不同通过标准库调用了。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2019-05-26-linux-syscall-01.png&#34; alt=&#34;pic&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;系统调用与内核架构图&lt;/em&gt;&lt;/p&gt;
+
+&lt;h4 id=&#34;中断&#34;&gt;中断&lt;/h4&gt;
+
+&lt;p&gt;操作系统一般是通过中断来完成从用户态切换到内核态的。即通过硬件或者软件向操作系统发送一个请求，要求 CPU 暂停当前的工作转而去处理更加重要的事。&lt;/p&gt;
+
+&lt;p&gt;中断一般具有两个属性，&lt;strong&gt;中断号&lt;/strong&gt;以及&lt;strong&gt;中断处理程序(Interrupt Service Routine, ISR)&lt;/strong&gt;。在内核中，有一个数组称为&lt;strong&gt;中断向量表(Interrupt Vector Table)&lt;/strong&gt;，能够通过中断号找到对应的中断处理程序，并且中断处理程序执行完成之后，CPU 会返回继续执行用户态代码。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2019-05-26-linux-syscall-02.png&#34; alt=&#34;pic&#34; /&gt;
+&lt;em&gt;内核中断处理&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Linux 使用 &lt;code&gt;int 0x80&lt;/code&gt; 来触发所有的系统调用，并且系统调用号用 &lt;code&gt;eax&lt;/code&gt; 存储，这样中断服务程序就可以从 &lt;code&gt;eax&lt;/code&gt; 里取得系统调用号，进而调用对应的函数。&lt;/p&gt;
+
+&lt;h3 id=&#34;系统调用的实现原理&#34;&gt;系统调用的实现原理&lt;/h3&gt;
+
+&lt;p&gt;用户程序调用所有的系统调用的流程都是类似的，包含三部分:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;用户程序需要设置系统调用的参数，传递给内核态。这里不同架构，以及不同系统的参数是不同的；&lt;/li&gt;
+&lt;li&gt;对于 x86，系统调用最终会调用 &lt;code&gt;glibc&lt;/code&gt; 的 &lt;code&gt;DO_CALL&lt;/code&gt;，这也就是程序将工作交给内核的切入点；&lt;/li&gt;
+&lt;li&gt;陷入内核态处理，并最终返回用户态，返回值也是内核完成对应任务后返回的值。如果内核执行该系统调用遇到错误，也会通过一个全局的错误号来存储错误信息。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&#34;系统调用参数传递&#34;&gt;系统调用参数传递&lt;/h4&gt;
+
+&lt;p&gt;在 i386 系统中，系统调用由 &lt;code&gt;int 0x80&lt;/code&gt; 中断完成，各个通用寄存器用于传递参数，&lt;code&gt;eax&lt;/code&gt; 寄存器用于系统调用的接口号。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;arch&lt;/th&gt;
+&lt;th&gt;arg1&lt;/th&gt;
+&lt;th&gt;arg2&lt;/th&gt;
+&lt;th&gt;arg3&lt;/th&gt;
+&lt;th&gt;arg4&lt;/th&gt;
+&lt;th&gt;arg5&lt;/th&gt;
+&lt;th&gt;arg6&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;i386&lt;/td&gt;
+&lt;td&gt;ebx&lt;/td&gt;
+&lt;td&gt;ecx&lt;/td&gt;
+&lt;td&gt;edx&lt;/td&gt;
+&lt;td&gt;esi&lt;/td&gt;
+&lt;td&gt;edi&lt;/td&gt;
+&lt;td&gt;ebp&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;x86_64&lt;/td&gt;
+&lt;td&gt;rdi&lt;/td&gt;
+&lt;td&gt;rsi&lt;/td&gt;
+&lt;td&gt;rdx&lt;/td&gt;
+&lt;td&gt;r10&lt;/td&gt;
+&lt;td&gt;r8&lt;/td&gt;
+&lt;td&gt;r9&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;em&gt;x86 架构通用寄存器参数对照表&lt;/em&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;参数都是通过寄存器传递的，并且如上图所示，32 位和 64 位的寄存器也不一样。&lt;/li&gt;
+&lt;li&gt;系统调用的参数限制在 6 个&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&#34;系统调用在-glibc-中的实现&#34;&gt;系统调用在 glibc 中的实现&lt;/h4&gt;
+
+&lt;p&gt;这里以常见的系统调用 open 为例，分析系统调用怎么实现的。glibc 的 open 函数定义如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;int open(const char *pathname, int flags, mode_t mode);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在 glibc 的源码中，有个文件 &lt;code&gt;syscalls.list&lt;/code&gt;, 里面罗列了所有 glibc 的函数对应的系统调用，如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;# File name	Caller	Syscall name	Args	Strong name	Weak names
+
+accept		-	accept		Ci:iBN	__libc_accept	accept
+access		-	access		i:si	__access	access
+...
+open		-	open		Ci:siv	__libc_open __open open
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;我们来看 glibc 中的文件 &lt;code&gt;open.c&lt;/code&gt; 的实现函数 &lt;code&gt;__libc_open&lt;/code&gt; :&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;int
+__libc_open (const char *file, int oflag, ...)
+{
+  int mode = 0;
+
+  if (__OPEN_NEEDS_MODE (oflag))
+    {
+      va_list arg;
+      va_start (arg, oflag);
+      mode = va_arg (arg, int);
+      va_end (arg);
+    }
+
+  return SYSCALL_CANCEL (openat, AT_FDCWD, file, oflag, mode);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;最终，&lt;code&gt;SYSCALL_CANCEL&lt;/code&gt; 在 &lt;code&gt;sysdep.h&lt;/code&gt; 中的展开为：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#define __INLINE_SYSCALL3(name, a1, a2, a3) \
+INLINE_SYSCALL (name, 3, a1, a2, a3)
+  
+#ifndef INLINE_SYSCALL
+#define INLINE_SYSCALL(name, nr, args...) __syscall_##name (args)
+#endif
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;__syscall_##name&lt;/code&gt; 在代码中完全找不到, 应该是 makefile 中有调用 &lt;code&gt;make-syscalls.sh&lt;/code&gt; 来生成嵌套代码, 其使用模板是 &lt;code&gt;syscall-template.S&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;在 &lt;code&gt;syscall-template.S&lt;/code&gt; 中，定义了这个系统调用的调用方式：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;T_PSEUDO (SYSCALL_SYMBOL, SYSCALL_NAME, SYSCALL_NARGS)
+    ret
+T_PSEUDO_END (SYSCALL_SYMBOL)
+
+#define T_PSEUDO(SYMBOL, NAME, N)		PSEUDO (SYMBOL, NAME, N)
+
+
+#define PSEUDO(name, syscall_name, args)           \
+  .text;                                        \
+  ENTRY (name)                                    \
+    DO_CALL (syscall_name, args);                  \
+    cmpl $-4095, %eax;                               \
+    jae SYSCALL_ERROR_LABEL
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;对于任何一个系统调用，会调用 &lt;code&gt;DO_CALL&lt;/code&gt;。对于 &lt;strong&gt;32 位系统&lt;/strong&gt;而言，该实现（&lt;code&gt;i386/sysdep.h&lt;/code&gt;）如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#define DO_CALL(syscall_name, args)			          \
+    PUSHARGS_##args							  \
+    DOARGS_##args							  \
+    movl $SYS_ify (syscall_name), %eax;	      \
+    ENTER_KERNEL							  \
+    POPARGS_##args
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中 &lt;code&gt;movl $SYS_ify (syscall_name), %eax;&lt;/code&gt; 表示将前面所讲的系统调用的调用号 &lt;code&gt;__NR_open&lt;/code&gt; 赋给 &lt;code&gt;eax&lt;/code&gt;。&lt;code&gt;ENTER_KERNEL&lt;/code&gt; 宏展开就是 &lt;code&gt;int $0x80&lt;/code&gt; 中断。&lt;/p&gt;
+
+&lt;p&gt;其中，&lt;code&gt;__NR_open&lt;/code&gt; 是一个宏，表示 open 系统调用的调用号。32 位系统，该宏的定义可以在 Linux 系统中 &lt;code&gt;/usr/include/asm/unistd_32.h&lt;/code&gt; 中找到，64 位系统可以在 &lt;code&gt;/usr/include/asm/unistd_64.h&lt;/code&gt; 中找到。以下是 32 位系统的调用号的宏定义：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#define __NR_restart_syscall      0
+#define __NR_exit         1
+#define __NR_fork         2
+#define __NR_read         3
+#define __NR_write        4
+#define __NR_open         5
+#define __NR_close        6
+......
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;对于 64 位系统而言，&lt;code&gt;DO_CALL&lt;/code&gt;实现（&lt;code&gt;x86_64/sysdep.h&lt;/code&gt;）的定义如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#define DO_CALL(syscall_name, args)					      \
+  lea SYS_ify (syscall_name), %rax;					      \
+  syscall
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里 64 位系统还是将系统调用名称转换为系统调用号，放在寄存器 &lt;code&gt;rax&lt;/code&gt; 中。但是不是通过中断，而是通过 &lt;code&gt;syscall&lt;/code&gt; 指令进行真正的内核调用。&lt;code&gt;syscall&lt;/code&gt; 指令使用了一种特殊的寄存器，&lt;strong&gt;特殊模块寄存器（Model Specific Registers, MSR）&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;h4 id=&#34;内核对调用函数的处理&#34;&gt;内核对调用函数的处理&lt;/h4&gt;
+
+&lt;p&gt;(以下内核代码都是基于 &lt;code&gt;4.10.1&lt;/code&gt; 版本)&lt;/p&gt;
+
+&lt;h5 id=&#34;触发中断与堆栈切换&#34;&gt;触发中断与堆栈切换&lt;/h5&gt;
+
+&lt;p&gt;在内核启动时调用 &lt;code&gt;start_kernel&lt;/code&gt; 作为内核启动的函数入口， 其中有一个函数 &lt;code&gt;trap_init&lt;/code&gt; 用于初始化中断的，里面有一句对于 &lt;code&gt;int $0x80&lt;/code&gt; 的中断入口:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以下是 &lt;code&gt;entry_INT80_32&lt;/code&gt; 的实现：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;ENTRY(entry_INT80_32)
+        ASM_CLAC
+        pushl   %eax                    /* pt_regs-&amp;gt;orig_ax */
+        SAVE_ALL pt_regs_ax=$-ENOSYS    /* save rest */
+        movl    %esp, %eax
+        call    do_syscall_32_irqs_on
+.Lsyscall_32_done:
+......
+.Lirq_return:
+	INTERRUPT_RETURN
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;通过 &lt;code&gt;push&lt;/code&gt; 和 &lt;code&gt;SAVE_ALL&lt;/code&gt; 将当前用户态的寄存器，保存在 &lt;code&gt;pt_regs&lt;/code&gt; 结构里，然后调用&lt;code&gt;do_syscall_32_irqs_on&lt;/code&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+{
+	struct thread_info *ti = current_thread_info();
+	unsigned int nr = (unsigned int)regs-&amp;gt;orig_ax;
+......
+	if (likely(nr &amp;lt; IA32_NR_syscalls)) {
+		regs-&amp;gt;ax = ia32_sys_call_table[nr](
+			(unsigned int)regs-&amp;gt;bx, (unsigned int)regs-&amp;gt;cx,
+			(unsigned int)regs-&amp;gt;dx, (unsigned int)regs-&amp;gt;si,
+			(unsigned int)regs-&amp;gt;di, (unsigned int)regs-&amp;gt;bp);
+	}
+	syscall_return_slowpath(regs);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里将系统调用号从 eax 中取出，然后根据系统调用号，在系统调用表里找到对应函数进行带哦用，并将寄存器中保存的参数取出来作为函数参数传递。&lt;/p&gt;
+
+&lt;p&gt;最终 &lt;code&gt;INTERRUPT_RETURN&lt;/code&gt; 宏展开后为 &lt;code&gt;iret&lt;/code&gt;，将原来用户态保存的线程恢复回来。包含代码段、指令指针寄存器等。&lt;/p&gt;
+
+&lt;h5 id=&#34;内核对系统函数的处理&#34;&gt;内核对系统函数的处理&lt;/h5&gt;
+
+&lt;p&gt;内核中会维护一个系统调用号与对应函数的系统调用表。这里以 32 位的系统调用表（&lt;code&gt;arch/x86/entry/syscalls/syscall_32.tbl&lt;/code&gt;）为例：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;# &amp;lt;number&amp;gt; &amp;lt;abi&amp;gt; &amp;lt;name&amp;gt; &amp;lt;entry point&amp;gt; &amp;lt;compat entry point&amp;gt;
+5	i386	open			sys_open  compat_sys_open
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中第一列数字就是系统调用号，第四列是系统调用在内核的实现函数，都是以 &lt;code&gt;sys_&lt;/code&gt; 开头。&lt;/p&gt;
+
+&lt;p&gt;系统调用在内核中的实现函数声明一般在 &lt;code&gt;include/linux/syscalls.h&lt;/code&gt; 文件中, 可以看到 &lt;code&gt;sys_open&lt;/code&gt; 的声明：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;asmlinkage long sys_open(const char __user *filename,
+				int flags, umode_t mode);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;真正实现一般在对应的 &lt;code&gt;.c&lt;/code&gt; 文件中，例如 &lt;code&gt;sys_ope&lt;/code&gt;n 的实现在 &lt;code&gt;fs/open.c&lt;/code&gt; 文件中。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
+{
+        if (force_o_largefile())
+                flags |= O_LARGEFILE;
+        return do_sys_open(AT_FDCWD, filename, flags, mode);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中 &lt;code&gt;SYSCALL_DEFINE3&lt;/code&gt; 是一个表示带有三个参数的宏，将其展开后，实现如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;asmlinkage long sys_open(const char __user * filename, int flags, int mode)
+{
+ long ret;
+
+
+ if (force_o_largefile())
+  flags |= O_LARGEFILE;
+
+
+ ret = do_sys_open(AT_FDCWD, filename, flags, mode);
+ asmlinkage_protect(3, ret, filename, flags, mode);
+ return ret;
+ }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;结合以上分析，这里总结下 32 位的系统调用从用户态到内核态是如何执行的。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2019-05-26-linux-syscall-03.png&#34; alt=&#34;pic&#34; /&gt;
+&lt;em&gt;32 位的系统调用 图片来源：趣谈Linux操作系统&lt;/em&gt;&lt;/p&gt;
+
+&lt;h3 id=&#34;系统调用实例&#34;&gt;系统调用实例&lt;/h3&gt;
+
+&lt;p&gt;通过以上的分析，相信大家已经了解了系统调用的整个流程。下面通过三种不同的方式，实现对终端的输出。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;通过 &lt;code&gt;write()&lt;/code&gt; 系统调用实现&lt;/li&gt;
+&lt;li&gt;通过 &lt;code&gt;syscall()&lt;/code&gt; 系统调用实现&lt;/li&gt;
+&lt;li&gt;通过汇编，调用 &lt;code&gt;syscall&lt;/code&gt; 指令&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&#34;write-系统调用&#34;&gt;write() 系统调用&lt;/h4&gt;
+
+&lt;p&gt;这里我们没有使用 &lt;code&gt;printf&lt;/code&gt; 这个标准库，而是使用 Linux 的系统调用 &lt;code&gt;write&lt;/code&gt; 。参数 &lt;code&gt;1&lt;/code&gt; 表示标准输出文件描述符。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;unistd.h&amp;gt;
+int main () 
+{
+    write (1, &amp;quot;Hello World&amp;quot;, 11);
+return 0; 
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h4 id=&#34;syscall-系统调用&#34;&gt;syscall() 系统调用&lt;/h4&gt;
+
+&lt;p&gt;现在，我们使用 glibc 提供的 &lt;code&gt;syscall&lt;/code&gt; 接口，实现同样的逻辑。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;sys/syscall.h&amp;gt;
+int main () 
+{
+    syscall (1, 1, &amp;quot;Hello World&amp;quot;, 11);
+return 0; 
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里第一个参数表示系统调用的调用号，我是在 64 位系统上运行的，所以 &lt;code&gt;write&lt;/code&gt; 对应的调用号为 &lt;code&gt;1&lt;/code&gt; ，如果是 32 位系统，则调用号为 &lt;code&gt;4&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;也就是说 &lt;code&gt;syscall&lt;/code&gt; 也是一个系统调用，而且接口更加原始，其他的系统调用都可以看作是通过 &lt;code&gt;syscall&lt;/code&gt; 实现的一种封装。&lt;/p&gt;
+
+&lt;h4 id=&#34;syscall-指令&#34;&gt;syscall 指令&lt;/h4&gt;
+
+&lt;p&gt;下面是通过汇编代码，实现同样的逻辑。这里的方法是将值放到对应的寄存器中，然后调用 &lt;code&gt;syscall&lt;/code&gt; 指令。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-s&#34;&gt;section .text global _start
+_start: ; ELF entry point ; 1 is the number for syscall write ().
+mov rax, 1
+; 1 is the STDOUT file descriptor.
+mov rdi, 1
+    ; buffer to be printed.
+    mov rsi, message
+    ; length of buffer
+    mov rdx, [messageLen]
+    ; call the syscall instruction
+syscall
+; sys_exit
+mov rax, 60
+; return value is 0
+mov rdi, 0
+; call the assembly instruction
+syscall
+section .data
+messageLen: dq message.end-message message: db &#39;Hello World&#39;, 10
+.end:
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;对应汇编代码的 makefile 如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;all:
+    nasm -felf64 write.asm
+    ld write.o -o elf.write
+clean:
+    rm -rf *.o
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以看到，这里将系统调用号 &lt;code&gt;1&lt;/code&gt; 放入了 &lt;code&gt;eax&lt;/code&gt;，后面的几个参数分别放入了寄存器 &lt;code&gt;rdi&lt;/code&gt;, &lt;code&gt;rsi&lt;/code&gt;, &lt;code&gt;rdx&lt;/code&gt;, 顺序是与之前的 64 位系统通用寄存器传递参数的顺序是一致的。&lt;/p&gt;</description>
+        </item>
+      
     
       
         <item>
@@ -1112,6 +1479,117 @@ resp.Body.Close()
     
       
         <item>
+          <title>Liunx性能检测常用命令(二)</title>
+          <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
+          <pubDate>Sun, 04 Sep 2016 00:00:00 UTC</pubDate>
+          <author></author>
+          <guid>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</guid>
+          <description>&lt;p&gt;&lt;a href=&#34;https://maodanp.github.io/2016/09/03/linux-performace-cmd-one&#34;&gt;前一篇&lt;/a&gt;讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。&lt;/p&gt;
+
+&lt;h3 id=&#34;iostat&#34;&gt;iostat&lt;/h3&gt;
+
+&lt;p&gt;iostat主要用于监控系统设备的IO负载情况。 主要用法如下:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;iostat -xz 1
+
+Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
+sda               0.00    51.00    0.00   22.00     0.00   648.00    29.45     0.00    0.05   0.05   0.10
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.88    0.00    0.38    0.04    0.00   98.70
+
+Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
+sda               0.00    20.00    0.00   16.00     0.00   288.00    18.00     0.01    0.75   0.06   0.10
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           3.69    0.00    0.88    0.00    0.00   95.43
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中，&lt;code&gt;-x&lt;/code&gt;将用于显示和io相关的扩展数据; &lt;code&gt;-z&lt;/code&gt;将取消显示在该间隔统计数据中无io活动的设备。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;r/s, w/s, rkB/s, wkB/s&lt;/code&gt; 分别表示每秒读写次数和每秒读写数据量（千字节）。读写量过大，可能会引起性能问题。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;await&lt;/code&gt; IO操作的平均等待时间，单位是毫秒。这是应用程序在和磁盘交互时，需要消耗的时间，包括IO等待和实际操作的耗时。如果这个数值过大，可能是硬件设备遇到了瓶颈或者出现故障。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;avgqu-sz&lt;/code&gt; 向设备发出的请求平均数量。如果这个数值大于1，可能是硬件设备已经饱和（部分前端硬件设备支持并行写入）。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;%util&lt;/code&gt; 设备利用率。这个数值表示设备的繁忙程度，经验值是如果超过60，可能会影响IO性能（可以参照IO操作平均等待时间）。如果到达100%，说明硬件设备已经饱和。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;free&#34;&gt;free&lt;/h3&gt;
+
+&lt;pre&gt;&lt;code&gt;free -m
+
+              total       used       free      shared     buffers   cached
+Mem:           1002        769        232        0           62       421
+-/+ buffers/cache:         286        715
+Swap: 1153 0 1153
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;第一部分Mem行。该行是针对OS而言的，它认为buffers/cached都是属于被使用,所以它认为free只有232M。存在如下关系：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;total(1002M) = used(769M) + free(232M)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;第二部分(-/+ buffers/cache)从应用程序的角度而言的，Mem行的buffers/cached 是等同可用的，因为buffer/cached是为了提高程序执行的性能，当程序使用内存时，buffer/cached会很快地被使用。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;* (-buffers/cache) used内存数：286M (Mem行中的used – buffers – cached)
+* (+buffers/cache) free内存数: 715M (Mem行中的free + buffers + cached)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;strong&gt;从应用的角度看，可用内存就是-/+ buffers/cache行的free&lt;/strong&gt;，如果可用内存非常少，系统可能会动用交换交换分区（如果配置了的话），这样会增加IO开销（可以在iostat命令中提现），降低系统性能。&lt;/p&gt;
+
+&lt;h3 id=&#34;sar&#34;&gt;sar&lt;/h3&gt;
+
+&lt;h4 id=&#34;网络设备的吞吐率&#34;&gt;网络设备的吞吐率&lt;/h4&gt;
+
+&lt;p&gt;&lt;code&gt;sar -n DEV 1&lt;/code&gt; 可以用于查看各个网络设备的吞吐量，判断网络设备的饱和度。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sar -n DEV 1
+
+11时58分49秒     IFACE   rxpck/s   txpck/s    rxkB/s    txkB/s   rxcmp/s   txcmp/s  rxmcst/s
+11时58分50秒        lo    174.75    174.75     99.00     99.00      0.00      0.00      0.00
+11时58分50秒       em1     27.27     19.19     13.53      3.12      0.00      0.00      1.01
+11时58分50秒       em2      6.06      0.00      0.38      0.00      0.00      0.00      1.01
+11时58分50秒       em3     98.99     94.95     37.58      7.10      0.00      0.00      0.00
+11时58分50秒       em4      0.00      0.00      0.00      0.00      0.00      0.00      0.00
+11时58分50秒   docker0      0.00      0.00      0.00      0.00      0.00      0.00      0.00
+11时58分50秒    virbr0      0.00      0.00      0.00      0.00      0.00      0.00      0.00
+11时58分50秒 virbr0-nic     0.00      0.00      0.00      0.00      0.00      0.00      0.00
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中，&lt;code&gt;rxkB/s&lt;/code&gt;，&lt;code&gt;txkB/s&lt;/code&gt;分别表示网卡的单位时间的进出口流量。在排查性能问题时，可以通过网络设备的吞吐量，判断网络设备是否已经饱和。&lt;/p&gt;
+
+&lt;h4 id=&#34;tcp连接状态&#34;&gt;TCP连接状态&lt;/h4&gt;
+
+&lt;p&gt;&lt;code&gt;sar -n TCP,ETCP 1&lt;/code&gt;可以用于查看TCP连接状态。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sar -n TCP,ETCP 1
+
+12时03分21秒  active/s passive/s    iseg/s    oseg/s
+12时03分22秒     13.13     11.11    277.78    283.84
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中参数含义：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;active/s：每秒本地发起的TCP连接数，既通过connect调用创建的TCP连接&lt;/li&gt;
+&lt;li&gt;passive/s：每秒远程发起的TCP连接数，即通过accept调用创建的TCP连接&lt;/li&gt;
+&lt;li&gt;retrans/s：每秒TCP重传数量&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;TCP连接数可以用来判断性能问题是否由于建立了过多的连接，进一步可以判断是主动发起的连接，还是被动接受的连接。TCP重传可能是因为网络环境恶劣，或者服务器压力过大导致丢包。&lt;/p&gt;
+
+&lt;h3 id=&#34;参考阅读&#34;&gt;参考阅读&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://www.tuicool.com/articles/mAFjaq&#34;&gt;centos 下安装监控工具&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://www.cnblogs.com/zhaoyl/p/4325811.html&#34;&gt;正确解读free -m&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://www.chinaz.com/server/2013/0401/297942.shtml&#34;&gt;linux sar 命令详解&lt;/a&gt;&lt;/p&gt;</description>
+        </item>
+      
+    
+      
+        <item>
           <title>golang中context包</title>
           <link>https://maodanp.github.io/2016/09/04/go/</link>
           <pubDate>Sun, 04 Sep 2016 00:00:00 UTC</pubDate>
@@ -1280,118 +1758,7 @@ func main() {
     
       
         <item>
-          <title>liunx性能检测常用命令(二)</title>
-          <link>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</link>
-          <pubDate>Sun, 04 Sep 2016 00:00:00 UTC</pubDate>
-          <author></author>
-          <guid>https://maodanp.github.io/2016/09/04/linux-performace-cmd-two/</guid>
-          <description>&lt;p&gt;&lt;a href=&#34;https://maodanp.github.io/2016/09/03/linux-performace-cmd-one&#34;&gt;前一篇&lt;/a&gt;讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。&lt;/p&gt;
-
-&lt;h3 id=&#34;iostat&#34;&gt;iostat&lt;/h3&gt;
-
-&lt;p&gt;iostat主要用于监控系统设备的IO负载情况。 主要用法如下:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;iostat -xz 1
-
-Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
-sda               0.00    51.00    0.00   22.00     0.00   648.00    29.45     0.00    0.05   0.05   0.10
-
-avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-           0.88    0.00    0.38    0.04    0.00   98.70
-
-Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
-sda               0.00    20.00    0.00   16.00     0.00   288.00    18.00     0.01    0.75   0.06   0.10
-
-avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-           3.69    0.00    0.88    0.00    0.00   95.43
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;其中，&lt;code&gt;-x&lt;/code&gt;将用于显示和io相关的扩展数据; &lt;code&gt;-z&lt;/code&gt;将取消显示在该间隔统计数据中无io活动的设备。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;r/s, w/s, rkB/s, wkB/s&lt;/code&gt; 分别表示每秒读写次数和每秒读写数据量（千字节）。读写量过大，可能会引起性能问题。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;await&lt;/code&gt; IO操作的平均等待时间，单位是毫秒。这是应用程序在和磁盘交互时，需要消耗的时间，包括IO等待和实际操作的耗时。如果这个数值过大，可能是硬件设备遇到了瓶颈或者出现故障。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;avgqu-sz&lt;/code&gt; 向设备发出的请求平均数量。如果这个数值大于1，可能是硬件设备已经饱和（部分前端硬件设备支持并行写入）。&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;%util&lt;/code&gt; 设备利用率。这个数值表示设备的繁忙程度，经验值是如果超过60，可能会影响IO性能（可以参照IO操作平均等待时间）。如果到达100%，说明硬件设备已经饱和。&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&#34;free&#34;&gt;free&lt;/h3&gt;
-
-&lt;pre&gt;&lt;code&gt;free -m
-
-              total       used       free      shared     buffers   cached
-Mem:           1002        769        232        0           62       421
--/+ buffers/cache:         286        715
-Swap: 1153 0 1153
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;第一部分Mem行。该行是针对OS而言的，它认为buffers/cached都是属于被使用,所以它认为free只有232M。存在如下关系：&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;total(1002M) = used(769M) + free(232M)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;第二部分(-/+ buffers/cache)从应用程序的角度而言的，Mem行的buffers/cached 是等同可用的，因为buffer/cached是为了提高程序执行的性能，当程序使用内存时，buffer/cached会很快地被使用。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;* (-buffers/cache) used内存数：286M (Mem行中的used – buffers – cached)
-* (+buffers/cache) free内存数: 715M (Mem行中的free + buffers + cached)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;strong&gt;从应用的角度看，可用内存就是-/+ buffers/cache行的free&lt;/strong&gt;，如果可用内存非常少，系统可能会动用交换交换分区（如果配置了的话），这样会增加IO开销（可以在iostat命令中提现），降低系统性能。&lt;/p&gt;
-
-&lt;h3 id=&#34;sar&#34;&gt;sar&lt;/h3&gt;
-
-&lt;h4 id=&#34;网络设备的吞吐率&#34;&gt;网络设备的吞吐率&lt;/h4&gt;
-
-&lt;p&gt;&lt;code&gt;sar -n DEV 1&lt;/code&gt; 可以用于查看各个网络设备的吞吐量，判断网络设备的饱和度。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;sar -n DEV 1
-
-11时58分49秒     IFACE   rxpck/s   txpck/s    rxkB/s    txkB/s   rxcmp/s   txcmp/s  rxmcst/s
-11时58分50秒        lo    174.75    174.75     99.00     99.00      0.00      0.00      0.00
-11时58分50秒       em1     27.27     19.19     13.53      3.12      0.00      0.00      1.01
-11时58分50秒       em2      6.06      0.00      0.38      0.00      0.00      0.00      1.01
-11时58分50秒       em3     98.99     94.95     37.58      7.10      0.00      0.00      0.00
-11时58分50秒       em4      0.00      0.00      0.00      0.00      0.00      0.00      0.00
-11时58分50秒   docker0      0.00      0.00      0.00      0.00      0.00      0.00      0.00
-11时58分50秒    virbr0      0.00      0.00      0.00      0.00      0.00      0.00      0.00
-11时58分50秒 virbr0-nic     0.00      0.00      0.00      0.00      0.00      0.00      0.00
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;其中，&lt;code&gt;rxkB/s&lt;/code&gt;，&lt;code&gt;txkB/s&lt;/code&gt;分别表示网卡的单位时间的进出口流量。在排查性能问题时，可以通过网络设备的吞吐量，判断网络设备是否已经饱和。&lt;/p&gt;
-
-&lt;h4 id=&#34;tcp连接状态&#34;&gt;TCP连接状态&lt;/h4&gt;
-
-&lt;p&gt;&lt;code&gt;sar -n TCP,ETCP 1&lt;/code&gt;可以用于查看TCP连接状态。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;sar -n TCP,ETCP 1
-
-12时03分21秒  active/s passive/s    iseg/s    oseg/s
-12时03分22秒     13.13     11.11    277.78    283.84
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;其中参数含义：&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;active/s：每秒本地发起的TCP连接数，既通过connect调用创建的TCP连接&lt;/li&gt;
-&lt;li&gt;passive/s：每秒远程发起的TCP连接数，即通过accept调用创建的TCP连接&lt;/li&gt;
-&lt;li&gt;retrans/s：每秒TCP重传数量&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;TCP连接数可以用来判断性能问题是否由于建立了过多的连接，进一步可以判断是主动发起的连接，还是被动接受的连接。TCP重传可能是因为网络环境恶劣，或者服务器压力过大导致丢包。&lt;/p&gt;
-
-&lt;h3 id=&#34;参考阅读&#34;&gt;参考阅读&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://www.tuicool.com/articles/mAFjaq&#34;&gt;centos 下安装监控工具&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://www.cnblogs.com/zhaoyl/p/4325811.html&#34;&gt;正确解读free -m&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://www.chinaz.com/server/2013/0401/297942.shtml&#34;&gt;linux sar 命令详解&lt;/a&gt;&lt;/p&gt;</description>
-        </item>
-      
-    
-      
-        <item>
-          <title>liunx性能检测常用命令(一)</title>
+          <title>Liunx性能检测常用命令(一)</title>
           <link>https://maodanp.github.io/2016/09/03/linux-performace-cmd-one/</link>
           <pubDate>Sat, 03 Sep 2016 00:00:00 UTC</pubDate>
           <author></author>
