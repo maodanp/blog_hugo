@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本篇将详细讲述Linux中ELF文件的装载过程，介绍进程虚拟地址空间的分布，以及虚拟地址空间载入物理内存的方式。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="Linux的进程虚拟地址空间 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    Linux的进程虚拟地址空间
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2019年06月02日 
+                </div>
+                <h1 class="post-title">Linux的进程虚拟地址空间</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本篇将详细讲述Linux中ELF文件的装载过程，介绍进程虚拟地址空间的分布，以及虚拟地址空间载入物理内存的方式。</p>
+
+<h3 id="虚拟地址空间简介">虚拟地址空间简介</h3>
+
+<p>每个程序被运行起来后，都将拥有自己的独立<strong>虚拟地址空间</strong>，虚拟地址空间的大小由CPU的位数决定的。比如 32 位的硬件平台决定了虚拟地址空间为 4 GB 大小。一般来说，C 语言指针大小的位数与虚拟空间的位数相同，如 32 位平台下的指针为 32 位， 即 4 字节。64 位平台下的指针为 64 位，即 8 字节。</p>
+
+<p>操作系统会提供一种机制，能够将不同进程的虚拟地址空间与不同内存的物理地址映射起来，这样所有进程都不能直接访问物理内存，都只能访问自己的虚拟内存空间。那 Linux 操作系统下 32 位平台下的 4 GB 虚拟地址空间是怎么分配的呢？</p>
+
+<p><img src="/pic/2019/2019-06-02-linux-virtual-space-01.png" alt="pic" /></p>
+
+<p>整个 4 GB 的空间，操作系统用了 1 GB，从地址 <code>0XC0000000</code> 到 <code>0XFFFFFFFF</code>, 剩余 3 GB留给用户空间。也就是说整个进程在执行的时候，所有的代码、数据包括申请的堆栈总和不能超过 3 GB。对于占用内存空间较大的进程，3 GB的内存空间实在是偏小，现在大部分的 App 也都支持 64 位系统。</p>
+
+<h3 id="虚拟地址空间分布">虚拟地址空间分布</h3>
+
+<p>通常，当我们执行一个程序时，系统会做一些初始化的工作：</p>
+
+<ul>
+<li>创建一个独立的虚拟地址空间，但是并不设置与物理内存的映射关系，这些映射关系等到后面程序发生页错误的时候再进行设置；</li>
+<li>读取可执行文件头，并建立虚拟空间与可执行文件的映射关系；</li>
+<li>将 CPU 指令寄存器设置为可执行文件入口，启动运行。</li>
+</ul>
+
+<p>在 Linux 中，虚拟空间与可执行文件的这种映射关系保存在操作系统内部的一个数据结构中，Linux 将进程虚拟地址空间的一个段叫做<strong>虚拟内存区域</strong>（VMA, Virtual Memory Area）。比如进程被创建后，操作系统可能会在进程相对应的数据结构中设置一个 <code>.text</code> 段的 VMA, 一个 <code>.data</code> 段的 VMA 。</p>
+
+<h4 id="链接视图和执行视图">链接视图和执行视图</h4>
+
+<p>在介绍 <a href="https://maodanp.github.io/2019/05/19/linux-elf/">ELF 文件</a>的那一篇文章中，介绍过 ELF 文件包含的段，有代码段、数据段、BSS 段等等，如果 ELF 被装载到进程虚拟地址空间后，每个段都对应一个 VMA ， 并且以系统页长度作为单位，那么每个段在映射时都以页的整数倍对齐的，那无疑会造成虚拟地址空间的极大浪费。</p>
+
+<p>站在操作系统角度看，它并不关心 ELF 文件各个段所包含内容，而是只关心一些跟装载相关的问题，最主要的是段的权限。所以最简单的方案是：<strong>对于相同权限的段，把它们合并在一起当做一个段进行映射</strong>。段权限基本分为以下三种：</p>
+
+<ul>
+<li>以代码段为代表的权限为可读可执行的段。</li>
+<li>以数据段和 BSS 段为代表的权限为可读可写的段。</li>
+<li>以只读数据为代表的权限为只读的段。</li>
+</ul>
+
+<p>ELF 在装载时按照 <code>Segment</code> 划分。一个 <code>Segment</code> 包含一个或多个属性类型的 <code>Section</code>。实际上 <code>Segment</code> 的概念是从装载的角度重新定划分了 ELF 的各个段。</p>
+
+<p>将目标文件链接成可执行文件时，链接器会尽量将相同权限属性的段分配在同一空间。在 ELF 中把这些属性相似的，又连在一起的段叫做一个 <code>Segment</code>，系统正是按照 <code>Segment</code> 来映射可执行文件的。也就是说映射以后在进程虚拟内存空间中只有一个相对应的VMA，这样做的好处是可以明显减少页面内部碎片，从而节省了内存空间。</p>
+
+<p>比如如下的程序，使用静态链接的方式将其编译链接成可执行文件。</p>
+
+<p><strong>$gcc -static SectionMapping.c -o SectionMapping</strong></p>
+
+<pre><code class="language-cpp">#include &lt;stdio.h&gt;
+int a = 1;
+
+int main()
+{
+    int b = 0;
+    printf(&quot;hello world&quot;);
+    getchar();
+    return 0;
+}
+</code></pre>
+
+<p>使用 readelf 可以看到，这个可执行文件总共有 33 个段（Section）</p>
+
+<pre><code>There are 33 section headers, starting at offset 0x8ea08:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .note.ABI-tag     NOTE            080480d4 0000d4 000020 00   A  0   0  4
+  [ 2] .note.gnu.build-i NOTE            080480f4 0000f4 000024 00   A  0   0  4
+  [ 3] .rel.plt          REL             08048118 000118 000028 08   A  0   5  4
+  [ 4] .init             PROGBITS        08048140 000140 000030 00  AX  0   0  4
+  [ 5] .plt              PROGBITS        08048170 000170 000050 00  AX  0   0  4
+  [ 6] .text             PROGBITS        080481c0 0001c0 069e4c 00  AX  0   0 16
+  ......
+  [31] .symtab           SYMTAB          00000000 08ef30 007e30 10     32 891  4
+  [32] .strtab           STRTAB          00000000 096d60 006d82 00      0   0  1
+</code></pre>
+
+<p>正如 ELF 中描述 <code>Section</code> 属性的结构叫做段表，描述 <code>Segment</code> 的结构叫 <strong>程序头</strong>（Program Header），<strong>它描述了 ELF 文件该如何被操作系统映射到进程的虚拟地址空间</strong>。</p>
+
+<p><strong>$readelf -l SectionMapping</strong></p>
+
+<pre><code>Elf file type is EXEC (Executable file)
+Entry point 0x80481c0
+There are 5 program headers, starting at offset 52
+
+Program Headers:
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  LOAD           0x000000 0x08048000 0x08048000 0x8d9d2 0x8d9d2 R E 0x1000
+  LOAD           0x08d9d4 0x080d69d4 0x080d69d4 0x00c6c 0x023c4 RW  0x1000
+  NOTE           0x0000d4 0x080480d4 0x080480d4 0x00044 0x00044 R   0x4
+  TLS            0x08d9d4 0x080d69d4 0x080d69d4 0x00010 0x00028 R   0x4
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 RW  0x4
+......
+</code></pre>
+
+<p>上面输出中，只有 <code>LOAD</code> 类型的 Segment 需要被映射，而其他的都是在装载时起辅助作用。从下图可以看到，ELF 被划分成了三部分，一部分可读可执行的段被统一映射到一个 VMA0，另一部分可读可写的段被映射到了 VMA1 ，还有一部分在程序装载时没有被映射的，它们是一些包含调试信息和字符串表等段，不需要被映射。</p>
+
+<p><img src="/pic/2019/2019-06-02-linux-virtual-space-02.png" alt="pic" /></p>
+
+<p>总体而言，<code>Segment</code> 和 <code>Section</code> 是从不同角度来划分同一个 ELF 文件。从 <code>Section</code> 角度来看 ELF 文件就是链接视图（Linking View），从 <code>Segment</code> 角度来看 ELF 文件则是执行视图（Execution View）。</p>
+
+<h4 id="堆和栈">堆和栈</h4>
+
+<p>进程在执行时会产生 <code>栈（Stack）</code>、<code>堆（Heap）</code> 等空间，很多情况下，一个进程中的堆和栈分别都有一个对应的 VMA 。Linux下可以通过 <code>/porc</code> 来查看进程的虚拟地址空间分布：</p>
+
+<pre><code>$ ./sectionMapping &amp;
+[1] 8095
+
+$ cat /proc/8095/maps
+0027a000-0027b000 r-xp 00000000 00:00 0          [vdso]
+08048000-080d6000 r-xp 00000000 08:02 412489     ./sectionMapping
+080d6000-080d8000 rw-p 0008d000 08:02 412489     ./sectionMapping
+080d8000-080d9000 rw-p 00000000 00:00 0 
+08335000-08357000 rw-p 00000000 00:00 0          [heap]
+b7793000-b7795000 rw-p 00000000 00:00 0 
+bf9dd000-bf9f2000 rw-p 00000000 00:00 0          [stack]
+</code></pre>
+
+<p>其中，第一列是 VMA 的地址范围；第二列是 VMA 的权限，“p” 表示私有（COW, Copy on Write）; 第三列表示偏移，表示 VMA 对应的 Segment 在可执行文件中的偏移；第四列表示可执行文件所在设备的主设备号和次设备号；第五列表示可执行文件的节点号；第六列表示可执行文件的路径。</p>
+
+<ul>
+<li>VDSO VMA</li>
+</ul>
+
+<p>其中第一行 <code>vdso</code> 表示内核提供的虚拟共享库。从地址空间上看位于 <code>0X08048000</code> 以下的保留区。保留区通常由C动态链接库、动态加载器ld.so和内核VDSO等占用。</p>
+
+<ul>
+<li>代码 VMA 与数据 VMA</li>
+</ul>
+
+<p>第二、第三行分别表示代码 VMA 和数据 VMA，其中代码段有只读、可执行权限， 数据段有可读写权限，并且它们是两个能够映射到可执行文件的两个 <code>Segment</code>。而其他的段的文件所在的主设备号和次设备号以及文件节点号都是0，表示它们没有映射到文件中，这种 VMA 称为<strong>匿名虚拟内存区域（Anonymous Virtial Memory Area）</strong>。</p>
+
+<ul>
+<li>堆 VMA</li>
+</ul>
+
+<p>堆用于存放进程运行时动态分配的内存段，可动态扩张或缩减。堆中内容是匿名的，不能按名字直接访问，只能通过指针间接访问。当进程调用 <code>malloc</code>、<code>new</code> 等函数分配内存时，新分配的内存动态添加到堆上（扩张）；当调用<code>free</code>、<code>delete</code> 等函数释放内存时，被释放的内存从堆中剔除（缩减）。</p>
+
+<ul>
+<li>栈 VMA</li>
+</ul>
+
+<p>栈又称堆栈，由编译器自动分配释放，主要是为记录函数调用过程相关的维护性信息，称为栈帧 (Stack Frame) 或过程活动记录 (Procedure Activation Record)。它包括函数返回地址，不适合装入寄存器的函数参数及一些寄存器值的保存。</p>
+
+<h3 id="装载方式-页映射">装载方式 - 页映射</h3>
+
+<p>程序执行时需要的指令和数据必须在内存中才能正常运行，最简单的办法是将程序运行时所需的指令和数据全部加载到内存中，这是最简单的<strong>静态载入</strong>的办法，但是多数情况下进程所需的内存空间远大于物理内存的空间容量。</p>
+
+<p>目前都是<strong>采用动态载入</strong>的方式，利用程序局部性原理，用到哪个模块，就将哪个模块装入内存，如果不用就暂不装入，存放在磁盘中。页映射是一种典型的动态装载方法，它不是一下子将程序的所有数据和指令都装入内存，而是将内存和地址空间中的所有数据和指令按照 <code>页（Page）</code> 为单位划分为若干页，以后所有的装载和操作都是以页为单位，并且页面的大小一般为 4KB 。</p>
+
+<p>下面我们分析下如何通过页映射将虚拟地址空间映射成物理地址的。</p>
+
+<h4 id="单页表">单页表</h4>
+
+<p>单页表比较简单，就是在页表中就是建立每个虚拟页号与物理页号的映射关系。这样通过这个页表，就能得到虚拟地址与物理地址的映射关系。</p>
+
+<p><img src="/pic/2019/2019-06-02-linux-virtual-space-03.png" alt="pic" /></p>
+
+<p><em>单页表，图片来源《趣谈Linux操作系统》</em></p>
+
+<p>单页表映射的方法存在下面两个问题：</p>
+
+<ul>
+<li>页表中所有页表项必须要提前建号，并且要求是连续的。</li>
+<li>32 位环境下，虚拟地址空间供 4GB。所以共有 1MB 个页，每个页表项需要有 4 字节来存储，则总共就需要有 4MB 的内存来存储映射表。如果每个进程都有自己的映射表，则 100 个进程就需要有 400MB 的内存。</li>
+</ul>
+
+<h4 id="二级页表">二级页表</h4>
+
+<p>二级页表就是对单页表的再分页。4G 的空间需要 4M 的页表来存储映射表，如果将这 4M 分成 1K 个 页（4K）, 这 1K 个页也需要一个表进行管理，我们成为<strong>页目录表</strong>，这个页目录表里面有 1K 项，每项 4 个字节，页目录表大小也就是 4K 。</p>
+
+<p><img src="/pic/2019/2019-06-02-linux-virtual-space-04.png" alt="pic" /></p>
+
+<p><em>二级页表，图片来源《趣谈Linux操作系统》</em></p>
+
+<p>假设我们给进程只分配了一个数据页，按照上面单页表的分析，必须在使用前分配完整的 1M 的页表项（占用内存 4M ），但是如果使用了页目录，页目录需要 1K 个全部分配（占用内存 4K），但是到了页表项，只需要分配能够管理那个数据页的页表项页就可以了（即最多 4K），所以总共只占用了 8K 的内存容量。</p>
+
+<h4 id="四级页表">四级页表</h4>
+
+<p>对于 64 位系统，两级页表肯定不够，需要用四级页表。分别是全局也目录项 PGD（Page Global Directory）、上层页目录项 PUD（Page Upper Directory）、中间页目录项 PMD（Page Middle Directory）和页表项 PTE（Page Table Entry）。</p>
+
+<p><img src="/pic/2019/2019-06-02-linux-virtual-space-05.png" alt="pic" /></p>
+
+<p><em>四级页表，图片来源《趣谈Linux操作系统》</em></p>
+
+<h3 id="总结">总结</h3>
+
+<p>本篇主要介绍了进程虚拟地址空间的分布，介绍了操作系统如何为程序的代码、数据、堆、栈在进程地址空间中分配及如何分布的。并且也介绍了页映射这种动态载入内存的方式。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《程序员的自我修养-链接、装载与库》- 第 6 章 可执行文件的装载与进程</p>
+
+<p>《趣谈Linux操作系统》- 第 21 章 内存管理（下）</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2019/06/02/linux-virtual-space/">https://maodanp.github.io/2019/06/02/linux-virtual-space/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/linux/">
+                            <i class="fa fa-tags"></i>
+                            linux
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2019/05/26/linux-syscall/">Linux的系统调用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年05月26日)</span></li><li id="li-rels"><a href="/2019/05/19/linux-elf/">目标文件的那些事</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年05月19日)</span></li><li id="li-rels"><a href="/2015/07/07/linux-iptables/">Linux防火墙</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年07月07日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous disabled"><a href="#"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2019/05/26/linux-syscall/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#虚拟地址空间简介">虚拟地址空间简介</a></li>
+<li><a href="#虚拟地址空间分布">虚拟地址空间分布</a>
+<ul>
+<li><a href="#链接视图和执行视图">链接视图和执行视图</a></li>
+<li><a href="#堆和栈">堆和栈</a></li>
+</ul></li>
+<li><a href="#装载方式-页映射">装载方式 - 页映射</a>
+<ul>
+<li><a href="#单页表">单页表</a></li>
+<li><a href="#二级页表">二级页表</a></li>
+<li><a href="#四级页表">四级页表</a></li>
+</ul></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+

@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Sun, 26 May 2019 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 02 Jun 2019 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://maodanp.github.io/tags/linux/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Linux的进程虚拟地址空间</title>
+      <link>https://maodanp.github.io/2019/06/02/linux-virtual-space/</link>
+      <pubDate>Sun, 02 Jun 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2019/06/02/linux-virtual-space/</guid>
+      <description>&lt;p&gt;本篇将详细讲述Linux中ELF文件的装载过程，介绍进程虚拟地址空间的分布，以及虚拟地址空间载入物理内存的方式。&lt;/p&gt;</description>
+    </item>
     
     <item>
       <title>Linux的系统调用</title>
