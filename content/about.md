@@ -1,6 +1,5 @@
 # 关于我
-maodanping 程序猿一枚
-目前就职于`Cisco`上海研发部
+maodanping 目前就职于 Cisco 中国
 
 ### 学历
 * 2006-2010@金陵科技学院(电子信息工程)
@@ -12,5 +11,6 @@ maodanping 程序猿一枚
 
 ### 联系方式：
 Email: maodanp@gmail.com
+
 微信号: maomaomdp
 

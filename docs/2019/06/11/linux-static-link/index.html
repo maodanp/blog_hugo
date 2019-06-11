@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本篇将详细讲述 Linux 中静态链接的过程，即链接器如何为目标文件分配在输出文件中的空间和地址，如何进行外部符号的解析与重定位。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="Linux的静态链接 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    Linux的静态链接
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2019年06月11日 
+                </div>
+                <h1 class="post-title">Linux的静态链接</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本篇将详细讲述 Linux 中静态链接的过程，即链接器如何为目标文件分配在输出文件中的空间和地址，如何进行外部符号的解析与重定位。</p>
+
+<p>比如对于两个文件 <code>a.c</code> 与 <code>b.c</code> 形成的目标文件，我们可以通过如下命令形成可执行文件。</p>
+
+<pre><code>gcc -c a.c b.c
+</code></pre>
+
+<p>其中</p>
+
+<pre><code class="language-cpp">/*a.c*/
+extern int shared;
+
+int main()
+{
+    int a = 100;
+    swap (&amp;a, &amp;shared);
+    return 0;
+}
+</code></pre>
+
+<pre><code class="language-cpp">/*b.c*/
+int shared = 1;
+
+void swap(int *a, int *b)
+{
+    *a ^= *b ^= *a ^= *b;
+}
+</code></pre>
+
+<p>其中模块 <code>b.c</code> 总共定义了两个全局符号，一个是变量&rdquo;shared&rdquo;，另一个是函数“swap”，并且在模块 <code>a.c</code> 里面引用了这两个全局符号。</p>
+
+<p>我们知道可执行文件中的代码段和数据段都是通过输入的目标文件中合并而来的，那链接器如何将它们的各个段合并在输出文件中的呢？</p>
+
+<p>现代链接器空间分配策略基本都采用两步链接（Two-pass Linking）的方法，即：</p>
+
+<p><strong>第一步 空间与地址分配</strong> 扫描所有的输入目标文件，获得各个段的长度、属性和位置，并且将输入目标文件中的符号表中所有的符号定义和符号引用收集起来，统一放到一个全局符号表。这一步中，链接器将能够获得所有输入目标文件的段长度，并且将它们合并，计算输出文件中各个段合并后的长度与位置，并建立映射关系。</p>
+
+<p><strong>第二步 符号解析与重定位</strong> 使用上面第一步中收集到的所有信息，读取输入文件中断的数据、重定位信息，并且进行符号解析与重定位、调整代码中的地址。</p>
+
+<h3 id="空间与地址分配">空间与地址分配</h3>
+
+<p>现代链接器一般将相同性质的段合并在一起，比如将所有输入文件的 <code>.text</code> 合并到输出文件的 <code>.text</code> 段，接着是 <code>.data</code> 段、<code>.bss</code> 段等等不同段进行合并。<code>.bss</code> 段在目标文件和可执行文件中并不占用文件的空间，但是它在装载时占用虚拟地址的地址空间。</p>
+
+<p><img src="/pic/2019/2019-06-11-linux-static-link-01.png" alt="pic" /></p>
+
+<p>我们使用 <code>ld</code> 命令将 a.o 和 b.o 链接起来：</p>
+
+<pre><code class="language-shell">$ld a.o b.o -e main -o ab
+</code></pre>
+
+<p>使用 objdump 来查看链接前后地址的分配情况：</p>
+
+<pre><code class="language-shell">$ objdump -h a.o
+
+a.o:     file format elf32-i386
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         0000002c  00000000  00000000  00000034  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  1 .data         00000000  00000000  00000000  00000060  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .bss          00000000  00000000  00000000  00000060  2**2
+                  ALLOC
+...
+
+$ objdump -h b.o 
+
+b.o:     file format elf32-i386
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         0000003a  00000000  00000000  00000034  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .data         00000004  00000000  00000000  00000070  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .bss          00000000  00000000  00000000  00000074  2**2
+                  ALLOC
+...
+
+
+$ objdump -h ab
+
+ab:     file format elf32-i386
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         00000066  08048094  08048094  00000094  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .data         00000004  080490fc  080490fc  000000fc  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+...
+</code></pre>
+
+<p>其中 VMA 表示 Virtual Memory Address，即虚拟地址，LMA 表示 Load Memory Address，即加载地址。正常情况下两个值都是一样的。</p>
+
+<p>通过上面的地址分配结果可以知道，在链接前目标文件中的所有段的 VMA 都是 0 ， 因为虚拟地址空间还没有被分配，所以它们默认都是 0 。链接之后，可执行文件 ab 中，所有地址都已经是程序在进程中的虚拟地址空间，即我们关心上面各个段中的 VMA 和 Size，而忽略文件偏移（File  offset）。</p>
+
+<p><img src="/pic/2019/2019-06-11-linux-static-link-02.png" alt="pic" /></p>
+
+<p>上图中我们忽略了像 <code>.comments</code> 这样的段，只关心代码段和数据段。可以看到，a.o, b.o 代码段被先后叠加起来，合并成 ab 的一个 <code>.text</code> 段，加起来的长度为 <code>0x72</code>。 所以 ab 的代码段里是包含了 <code>main</code> 函数和 <code>swap</code> 函数的指令代码。</p>
+
+<h3 id="符号解析与重定位">符号解析与重定位</h3>
+
+<p>在完成空间和地址的分配步骤之后，链接器就进入了<strong>符号解析与重定位</strong>的步骤。在分析符号解析和重定位之前，首先让我们看看 a.o 里面是怎么使用这两个外部符号的，也就是 a.c 使用的 <code>shared</code> 变量和 <code>swap</code> 函数。</p>
+
+<p>使用 objdump 的 <code>-d</code> 参数可以看到 a.o 的代码段反汇编结果：</p>
+
+<pre><code class="language-shell">$ objdump -d a.o 
+
+a.o:     file format elf32-i386
+
+Disassembly of section .text:
+
+00000000 &lt;main&gt;:
+   0:	55                   	push   %ebp
+   1:	89 e5                	mov    %esp,%ebp
+   3:	83 e4 f0             	and    $0xfffffff0,%esp
+   6:	83 ec 20             	sub    $0x20,%esp
+   9:	c7 44 24 1c 64 00 00 	movl   $0x64,0x1c(%esp)
+  10:	00 
+  11:	c7 44 24 04 00 00 00 	movl   $0x0,0x4(%esp)
+  18:	00 
+  19:	8d 44 24 1c          	lea    0x1c(%esp),%eax
+  1d:	89 04 24             	mov    %eax,(%esp)
+  20:	e8 fc ff ff ff       	call   21 &lt;main+0x21&gt;
+  25:	b8 00 00 00 00       	mov    $0x0,%eax
+  2a:	c9                   	leave  
+  2b:	c3                   	ret   
+</code></pre>
+
+<p>通过反汇编，我们可以清楚看到 a.o 共占用了 <code>0x2c</code> 个字节，与之前我们看到的 a.o 的 Size 相符合，共 17 条指令，其中最左边为每条指令的偏移量，中间则代表每一条指令。</p>
+
+<p>其中偏移量为 <code>11</code> 的位置代表对于 <code>shared</code> 的引用是一条 <code>mov</code> 指令，这条指令总共 8 个字节，它的作用是将 <code>shared</code> 的地址赋值到 ESP 寄存器 +4 的偏移地址上去。 前面的 4 个字节是指令码， 后面的 4 个字节是 <code>shared</code> 的地址。</p>
+
+<p>当源代码 a.c 在被编译成目标文件时，编译器并不是到 <code>shared</code> 和 <code>swap</code> 的地址，因为它们定义在其他目标文件中。所以编译器就暂时把地址 0  看作是 <code>shared</code> 的地址。</p>
+
+<p><img src="/pic/2019/2019-06-11-linux-static-link-03.png" alt="pic" /></p>
+
+<p>另一个是偏移为 <code>0x20</code> 的指令的一条调用指令，它其实是对 <code>swap</code> 函数的调用，如下图：</p>
+
+<p><img src="/pic/2019/2019-06-11-linux-static-link-04.png" alt="pic" /></p>
+
+<p>这条指令是一条<strong>近址相对位移调用指令</strong>，后面 4 个字节就是被调用函数的相对于调用指令的下一条指令的偏移量。在没有重定位之前，相对偏移被置为 <code>0xFFFFFFFC</code>（小端，为常量 -4 的补码）。紧跟在这条 call 指令后面的那条指令是 add 指令，add 指令的地址为 0x25，而相对于 add 指令偏移为 -4 的地址为 <code>0x25 - 4 = 0x21</code>，但是 <code>0x21</code> 存放的并不是 swap 函数的地址。跟前面 <code>shared</code> 一样， <code>0xFFFFFFFC</code> 只是一个临时的假地址，因为在编译的时候，编译器并不知道 <code>swap</code> 的真正地址。</p>
+
+<p>通过前面的空间与地址分配可以得知，链接器在完成地址和空间分配之后就已经可以确定所有符号的虚拟地址了，那么链接器就可以根据符号的地址对每个须要重定位的指令进行地址修正。我们反汇编 ab 的代码段，可以看到 <code>main</code> 函数的两个重定位入口都已经被修正到了正确的位置：</p>
+
+<pre><code class="language-shell">$ objdump -d ab 
+
+ab:     file format elf32-i386
+
+Disassembly of section .text:
+
+08048094 &lt;main&gt;:
+ 8048094:	55                   	push   %ebp
+ 8048095:	89 e5                	mov    %esp,%ebp
+ 8048097:	83 e4 f0             	and    $0xfffffff0,%esp
+ 804809a:	83 ec 20             	sub    $0x20,%esp
+ 804809d:	c7 44 24 1c 64 00 00 	movl   $0x64,0x1c(%esp)
+ 80480a4:	00 
+ 80480a5:	c7 44 24 04 fc 90 04 	movl   $0x80490fc,0x4(%esp)
+ 80480ac:	08 
+ 80480ad:	8d 44 24 1c          	lea    0x1c(%esp),%eax
+ 80480b1:	89 04 24             	mov    %eax,(%esp)
+ 80480b4:	e8 07 00 00 00       	call   80480c0 &lt;swap&gt;
+ 80480b9:	b8 00 00 00 00       	mov    $0x0,%eax
+ 80480be:	c9                   	leave  
+ 80480bf:	c3                   	ret    
+
+080480c0 &lt;swap&gt;:
+ 80480c0:	55                   	push   %ebp
+ 80480c1:	89 e5                	mov    %esp,%ebp
+ 80480c3:	53                   	push   %ebx
+
+</code></pre>
+
+<p>经过修正后，<code>shared</code> 和 <code>swap</code> 的地址分别为 <code>0x080490fc</code> 和 <code>0x00000007</code>。关于 <code>shared</code> 很好理解，之前分析过，该变量的地址就是 <code>0x080490fc</code>；对于 <code>swap</code> 来说，这个 <code>call</code> 指令是一条<strong>近址相对位移调用指令</strong>，它后面的指令是 <code>add</code> 指令，地址为 <code>0x80480b9</code>, 所以 “相对于 add 指令偏移量为 0x00000007” 的地址为 <code>0x80480b9 + 7 = 0x80480c0</code>，即刚好是 <code>swap</code> 函数的地址 （可以通过 <code>main</code> 函数地址 <code>0x08048094</code> + 长度 <code>0x2c</code> 获得）。</p>
+
+<h4 id="重定位表">重定位表</h4>
+
+<p>链接器是怎么知道哪些指令需要被调整，怎么调整的？在ELF文件中，有一个叫重定位表（Relocation Table）的结构专门用来保存这些与重定位相关的信息。</p>
+
+<p>比如代码段 <code>.text</code> 如有要被重定位的地方，则有一个相对应的 <code>.rel.text</code> 的段保存代码段的重定位表；如果数据段 <code>.data</code> 有要被重定位的地方，就会有一个相对应的 <code>.rel.data</code> 的段保存数据段的重定位表。可以通过 objdump 来查看目标文件的重定位表：</p>
+
+<pre><code class="language-shell">$ objdump -r a.o
+
+a.o:     file format elf32-i386
+
+RELOCATION RECORDS FOR [.text]:
+OFFSET   TYPE              VALUE 
+00000015 R_386_32          shared
+00000021 R_386_PC32        swap
+</code></pre>
+
+<p>我们可以看到 a.o 里面有两个重定位的入口。第一列表示重定位入口的偏移（Offset） 表示该入口在要被重定位的断中的位置，对照前面反汇编结果可知，<code>0x15</code> 和 <code>0x21</code> 分别对应代码中的 <code>mov</code> 指令和 <code>call</code> 指令的地址部分。</p>
+
+<p>第二列表示重定位入口的类型，其中 <code>R_386_32</code> 表示 32 位的绝对寻址修正，<code>R_386_PC32</code> 表示 32 位的相对寻址修正。</p>
+
+<h4 id="符号解析">符号解析</h4>
+
+<p>我们平时在编写程序时常遇到的问题之一是在链接时符号未定义。前面已经介绍了重定位的过程，重定位过程也伴随着符号的解析过程，每个目标文件都可能定义一些符号，也可能引用到定义在其他目标文件的符号。</p>
+
+<blockquote>
+<p>重定位的过程中，每个重定位的入口都是对一个符号的引用，那么当链接器需要对某个符号的引用进行重定位时，它就要确定这个符号的目标地址，这时候链接器就回去查找由所有输入目标文件的符号表组成的全局符号表，找到相应的符号后进行重定位。</p>
+</blockquote>
+
+<p>比如我们查看 a.o 的符号表：</p>
+
+<pre><code class="language-shell">$ readelf -s a.o 
+
+Symbol table '.symtab' contains 10 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 00000000     0 FILE    LOCAL  DEFAULT  ABS a.c
+     2: 00000000     0 SECTION LOCAL  DEFAULT    1 
+     3: 00000000     0 SECTION LOCAL  DEFAULT    3 
+     4: 00000000     0 SECTION LOCAL  DEFAULT    4 
+     5: 00000000     0 SECTION LOCAL  DEFAULT    6 
+     6: 00000000     0 SECTION LOCAL  DEFAULT    5 
+     7: 00000000    44 FUNC    GLOBAL DEFAULT    1 main
+     8: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND shared
+     9: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND swap
+</code></pre>
+
+<p>其中有两项 <code>shared</code> 和 <code>swap</code> 都是 <code>UND</code>, 即 <code>undefined</code> 未定义类型，这种未定义的符号都是因为该目标文件中有关于它们的重定位项。所以在链接器扫描完所有的输入目标文件之后，所有这些未定义的符号都应该能够在全局符号表中找到，否则链接器就会报符号未定义错误。</p>
+
+<p>我们也可以看下链接之后可执行文件中是否还有未定义的符号类型：</p>
+
+<pre><code class="language-shell"> $ readelf -s ab 
+
+Symbol table '.symtab' contains 12 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 08048094     0 SECTION LOCAL  DEFAULT    1 
+     2: 080490fc     0 SECTION LOCAL  DEFAULT    2 
+     3: 00000000     0 SECTION LOCAL  DEFAULT    3 
+     4: 00000000     0 FILE    LOCAL  DEFAULT  ABS a.c
+     5: 00000000     0 FILE    LOCAL  DEFAULT  ABS b.c
+     6: 080480c0    58 FUNC    GLOBAL DEFAULT    1 swap
+     7: 080490fc     4 OBJECT  GLOBAL DEFAULT    2 shared
+     8: 08049100     0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
+     9: 08048094    44 FUNC    GLOBAL DEFAULT    1 main
+    10: 08049100     0 NOTYPE  GLOBAL DEFAULT  ABS _edata
+    11: 08049100     0 NOTYPE  GLOBAL DEFAULT  ABS _end
+</code></pre>
+
+<p>我们看到 <code>shared</code> 和 <code>swap</code> 的 <code>Ndx</code> 分别为 2、1。表示符号所在的段索引分别为2、1, 那段索引怎么看呢？如果你还记得之前的一篇<a href="https://maodanp.github.io/2019/05/19/linux-elf/">目标文件的那些事</a>，你应该就能联想到了这里代表的含义，可以通过 <code>readelf -a</code> 命令查看：</p>
+
+<pre><code class="language-shell">$ readelf -a ab
+ELF Header:
+ ...
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        08048094 000094 000066 00  AX  0   0  4
+  [ 2] .data             PROGBITS        080490fc 0000fc 000004 00  WA  0   0  4
+  [ 3] .comment          PROGBITS        00000000 000100 00002d 01  MS  0   0  1
+  [ 4] .shstrtab         STRTAB          00000000 00012d 000030 00      0   0  1
+  [ 5] .symtab           SYMTAB          00000000 000278 0000c0 10      6   6  4
+  [ 6] .strtab           STRTAB          00000000 000338 000032 00      0   0  1
+   ...
+</code></pre>
+
+<p>从上图可知，<code>shared</code> 和 <code>swap</code> 表示这些符号分别位于<strong>数据段</strong>和<strong>代码段</strong>。</p>
+
+<h3 id="总结">总结</h3>
+
+<p>本篇详述了静态链接的两个步骤，即目标文件在被链接成最终可执行文件时，输入目标文件中的各个段是如何被合并到输出文件中的。一旦输入端的最终地址被确认，接下来链接器会对各个输入目标文件中外部符号的引用进行解析，对每个段中须要重定位的指令和数据进行“修补”，使它们都指向正确的位置。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《程序员的自我修养-链接、装载与库》- 第 4 章 静态链接</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2019/06/11/linux-static-link/">https://maodanp.github.io/2019/06/11/linux-static-link/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/linux/">
+                            <i class="fa fa-tags"></i>
+                            linux
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2019/06/02/linux-virtual-space/">Linux的进程虚拟地址空间</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年06月02日)</span></li><li id="li-rels"><a href="/2019/05/26/linux-syscall/">Linux的系统调用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年05月26日)</span></li><li id="li-rels"><a href="/2019/05/19/linux-elf/">目标文件的那些事</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年05月19日)</span></li><li id="li-rels"><a href="/2015/07/07/linux-iptables/">Linux防火墙</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年07月07日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous disabled"><a href="#"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2019/06/02/linux-virtual-space/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#空间与地址分配">空间与地址分配</a></li>
+<li><a href="#符号解析与重定位">符号解析与重定位</a>
+<ul>
+<li><a href="#重定位表">重定位表</a></li>
+<li><a href="#符号解析">符号解析</a></li>
+</ul></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+
