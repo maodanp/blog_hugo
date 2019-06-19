@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本篇将详细讲述 Linux 中动态链接的过程，并且分析动态链接库装载时的重定位方法。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="Linux的动态链接 - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    Linux的动态链接
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2019年06月18日 
+                </div>
+                <h1 class="post-title">Linux的动态链接</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本篇将详细讲述 Linux 中动态链接的过程，并且分析动态链接库装载时的重定位方法。</p>
+
+<p>静态链接的装载、执行速度比较快，因为编译时会将需要的所有静态库都链接进去，所以应用程序一般占用空间都比较大。如果静态库被多个程序使用（比如 C 语言的静态库），则该库会被装载多次，浪费内存。</p>
+
+<p>动态链接即是将程序的模块相互分割开来，形成单独的文件，而不是将它们静态的链接在一起。<strong>不对那些组成程序的目标文件进行链接，而是等到程序要运行时才进行链接，即将链接这个过程推迟到了运行时才进行，这就是动态链接的基本思想</strong>。</p>
+
+<p>静态链接不仅浪费空间，而且对程序的更新、部署和发布也会带来很多麻烦。动态链接方案则可以使得程序的升级变得更加容易，当我们升级程序时，只要替换旧的目标文件，当程序下一次运行时，新版本的目标文件就会被自动装载到内存并且链接起来。动态链接的方式使得开发过程中各个模块更加独立，耦合度更小，便于不同模块开发者之间能够独立进行开发和测试。</p>
+
+<h3 id="示例">示例</h3>
+
+<p>下面通过简单实例描述动态链接的过程。</p>
+
+<pre><code class="language-cpp">/*program1.c*/
+#include &quot;Lib.h&quot;                                                                
+int main()
+{
+    foobar(1);
+    return 0;
+}
+/*program2.c*/
+#include &quot;Lib.h&quot;                                                                
+int main()
+{
+    foobar(2);
+    return 0;
+}
+/*Lib.c*/
+#include &lt;stdio.h&gt;                                                              
+void foobar(int i)
+{
+    printf(&quot;This message from Lib.so %d\n&quot;,i);
+    sleep(-1);
+}
+
+/*Lib.h*/
+#ifndef LIB_H                                                                   
+#define LIB_H
+void foobar(int i); 
+#endif
+</code></pre>
+
+<h4 id="动态链接流程">动态链接流程</h4>
+
+<p>将 Lib.c 编译生成一个共享对象文件</p>
+
+<pre><code class="language-shell">gcc -fPIC -shared -o Lib.so Lib.c
+</code></pre>
+
+<p>然后利用生成的 Lib.so ，分别编译进 a.c ，b.c 。</p>
+
+<pre><code class="language-shell">gcc -o program1 program1.c ./Lib.so
+gcc -o program2 program2.c ./Lib.so
+</code></pre>
+
+<p>下面总结了动态链接的基本流程：</p>
+
+<p><img src="/pic/2019/2019-06-18-linux-dynamic-link-01.png" alt="pic" /></p>
+
+<p>这里 Lib.so 也参与了 program1.c 文件的链接，而前面介绍的动态链接的基本思想是将链接过程推迟到加载后再进行链接，这是否存在冲突了？</p>
+
+<p>如果 foobar() 是一个定义于其他静态目标模块中的函数，那么链接器将会按照静态链接的规则，将 program1.o 中的 foobar 地址引用重定位；如果 foobar() 是一个定义在某个动态共享对象中的函数，那么链接器就会将这个符号的引用标记为一个动态链接的符号，不对它进行地址重定位，把这个过程留到装载时再进行。</p>
+
+<h4 id="动态链接程序地址空间分布">动态链接程序地址空间分布</h4>
+
+<p>前面已经介绍过静态链接下的进程虚拟空间的分布，对于动态链接而言，除了可执行文件本身之外，还有它的共享目标文件。</p>
+
+<pre><code class="language-shell">$ ./program1&amp;
+[2] 15896
+
+$ cat /proc/15896/maps
+0016f000-00300000 r-xp 00000000 08:02 283421     /lib/libc-2.12.so
+00300000-00302000 r--p 00191000 08:02 283421     /lib/libc-2.12.so
+00302000-00303000 rw-p 00193000 08:02 283421     /lib/libc-2.12.so
+00303000-00306000 rw-p 00000000 00:00 0 
+004db000-004fa000 r-xp 00000000 08:02 283418     /lib/ld-2.12.so
+004fa000-004fb000 r--p 0001e000 08:02 283418     /lib/ld-2.12.so
+004fb000-004fc000 rw-p 0001f000 08:02 283418     /lib/ld-2.12.so
+00671000-00672000 r-xp 00000000 08:02 412555     ./Lib.so
+00672000-00673000 rw-p 00000000 08:02 412555     ./Lib.so
+0081d000-0081e000 r-xp 00000000 00:00 0          [vdso]
+08048000-08049000 r-xp 00000000 08:02 412562     ./program1
+08049000-0804a000 rw-p 00000000 08:02 412562     ./program1
+b7765000-b7766000 rw-p 00000000 00:00 0 
+b7772000-b7774000 rw-p 00000000 00:00 0 
+bfc86000-bfc9b000 rw-p 00000000 00:00 0          [stack]
+</code></pre>
+
+<p>在整个进程虚拟地址空间中，多出了几个文件的映射。 其中 <code>libc-2.12.so</code> 为动态链接形式的 C 语言运行库。另一个 <code>ld-2.12.so</code> 则是动态链接器。动态链接器与普通共享对象一样被映射到了进程的地址空间，在系统开始运行 program1 之前，首先会把控制权交给动态链接器，由它完成所有的动态链接工作以后再把控制权交个 program1, 然后开始执行。</p>
+
+<p>通过 readelf 工具来查看 Lib.so 的装载属性，就如我们查看普通程序一样：</p>
+
+<pre><code class="language-shell">$ readelf -l Lib.so 
+
+Elf file type is DYN (Shared object file)
+Entry point 0x390
+There are 5 program headers, starting at offset 52
+
+Program Headers:
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  LOAD           0x000000 0x00000000 0x00000000 0x00514 0x00514 R E 0x1000
+  LOAD           0x000514 0x00001514 0x00001514 0x00100 0x00108 RW  0x1000
+  DYNAMIC        0x00052c 0x0000152c 0x0000152c 0x000c0 0x000c0 RW  0x4
+  NOTE           0x0000d4 0x000000d4 0x000000d4 0x00024 0x00024 R   0x4
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 RW  0x4
+
+ Section to Segment mapping:
+  Segment Sections...
+   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rel.dyn .rel.plt .init .plt .text .fini .rodata .eh_frame 
+   01     .ctors .dtors .jcr .data.rel.ro .dynamic .got .got.plt .bss 
+   02     .dynamic 
+   03     .note.gnu.build-id 
+</code></pre>
+
+<p>与普通程序不同的是，<code>Lib.so</code> 文件的装载地址从 <code>0x00000000</code> 开始，这个地址很明显是无效的，而且从前面查看进程的虚拟地址空间分布中可以看出 <code>Lib.so</code> 文件的实际装载地址也不是 <code>0x00000000</code>，于是得出一个结论，<strong>共享对象的最终装载地址在编译时是不确定的</strong>。</p>
+
+<h3 id="地址无关代码">地址无关代码</h3>
+
+<h4 id="装载时重定位">装载时重定位</h4>
+
+<p>对于动态链接的共享对象而言，必须能够支持在任意地址的加载，不能假设自己在虚拟地址空间中的位置。</p>
+
+<p>之前在静态链接中所介绍的重定位方法叫做<strong>链接时重定位</strong>，而动态链接过程不对程序中使用的动态链接符号进行重定位，而是推迟到装载时才完成，即一旦模块装载地址确定，就对程序中所有绝对地址引用进行重定位。这种方式称之为<strong>装载时重定位</strong>。</p>
+
+<p>可以想象，动态链接模块被装载映射至虚拟空间后，指令部分是在多个进程之间共享的，由于装载时重定位的方法需要修改指令，所以没有办法做到同一份指令被多个进程共享，因为指令被重定位后对于每个进程而言是不同的。这样也就失去了动态链接节省内存的一大优势。下面引入了另一种能够让共享对象地址加载的方法。</p>
+
+<h4 id="地址无关代码-1">地址无关代码</h4>
+
+<p>我们的目的是希望程序模块中共享对象的指令部分在装载时不需要随着装载地址的改变而改变。实现的基本方法是将指令中那些需要被修改的部分分离出来，跟数据部分放在一起，这样指令部分就可以保持不变，而数据部分可以在每个进程中拥有一个副本。这种方案称之为<strong>地址无关代码（PIC, Position-independent Code）</strong>。</p>
+
+<p>对于地址无关代码，需要分情况来讨论，共享对象模块中的地址引用可以按照是否跨模块分为两类：模块内与模块外，按照引用方式的不同可分为指令引用与数据访问。</p>
+
+<p>下面以一个示例来说明：</p>
+
+<pre><code>static int a; 
+extern int b;
+extern void ext();
+
+void bar()
+{
+    a = 1;    /*模块内部数据访问*/
+    b = 2;    /*模块外部数据访问*/
+}
+
+void foo()
+{
+    bar();    /*模块内部函数调用*/
+    ext();    /*模块外部函数调用*/
+}
+</code></pre>
+
+<p>通过下面的命令可以生成共享对象：</p>
+
+<pre><code class="language-shell">$ gcc  -shared  -fPIC  -o  pic.so  pic.c
+</code></pre>
+
+<h5 id="模块内部调用-跳转">模块内部调用、跳转</h5>
+
+<p>该类型是最简单的一类，由于被调用函数与调用者处于同一个模块，它们之间的相对位置是固定的，所以这种情况比较简单，不需要重定位。</p>
+
+<pre><code class="language-shell">$ objdump -d pic.so
+
+00000486 &lt;foo&gt;:
+ 486:	55                   	push   %ebp
+ 487:	89 e5                	mov    %esp,%ebp
+ 489:	53                   	push   %ebx
+ 48a:	83 ec 04             	sub    $0x4,%esp
+ 48d:	e8 c7 ff ff ff       	call   459 &lt;__i686.get_pc_thunk.bx&gt;
+ 492:	81 c3 5e 11 00 00    	add    $0x115e,%ebx
+ 498:	e8 ab fe ff ff       	call   348 &lt;bar@plt&gt;
+ 49d:	e8 c6 fe ff ff       	call   368 &lt;ext@plt&gt;
+ 4a2:	83 c4 04             	add    $0x4,%esp
+ 4a5:	5b                   	pop    %ebx
+ 4a6:	5d                   	pop    %ebp
+ 4a7:	c3                   	ret    
+</code></pre>
+
+<p>上表中相对地址位于 <code>0x498</code> 的语句即为调用 <code>bar()</code> 函数的语句，不过可以看到和想象中有些不同，调用的是 <code>bar@plt</code> 函数，关于这个牵扯到了延迟绑定（PLT）的内容，后面会说明。</p>
+
+<h5 id="模块内部数据访问">模块内部数据访问</h5>
+
+<p>对于模块内部的数据访问，因为指令中不能包含数据的绝对地址，那么唯一的方法就是相对寻址。我们知道，一个模块前面一般都是若干个页的代码，后面紧跟着若干个页的数据，这些页之间的相对位置是固定的，那么只需要相对于当前指令加上固定的偏移量就可以访问模块内部的数据了。</p>
+
+<pre><code class="language-shell">$ objdump -d pic.so
+
+00000460 &lt;bar&gt;:
+ 460:	55                   	push   %ebp
+ 461:	89 e5                	mov    %esp,%ebp
+ 463:	e8 40 00 00 00       	call   4a8 &lt;__i686.get_pc_thunk.cx&gt;
+ 468:	81 c1 88 11 00 00    	add    $0x1188,%ecx
+ 46e:	c7 81 24 00 00 00 01 	movl   $0x1,0x24(%ecx)
+ 475:	00 00 00 
+ 478:	8b 81 f8 ff ff ff    	mov    -0x8(%ecx),%eax
+ 47e:	c7 00 02 00 00 00    	movl   $0x2,(%eax)
+ 484:	5d                   	pop    %ebp
+ 485:	c3                   	ret 
+</code></pre>
+
+<p>上图中 <code>0x463</code>,<code>0x468</code>,<code>0x46e</code> 三行表示的是 bar() 函数中访问内部变量 a 的相应代码。</p>
+
+<p>其中第一句调用了 <code>__x86.get_pc_thunk.cx</code> 函数，那么这个函数是干什么的呢？</p>
+
+<pre><code class="language-shell">$ objdump -d pic.so
+
+000004ad &lt;__i686.get_pc_thunk.cx&gt;:
+ 4ad:	8b 0c 24             	mov    (%esp),%ecx
+ 4b0:	c3                   	ret    
+</code></pre>
+
+<p>当处理器执行 call 指令后，下一条指令的地址会被压到栈顶，而 esp 即指向栈顶，于是这个函数能够将下条指令的地址存入 ecx 寄存器。</p>
+
+<p>那么我们继续看下面的语句，将 ecx 寄存器中的值加上 <code>0x1188</code>，我们可以计算一下: <code>下一条指令地址 + 0x1188 = 0x0468 + 0x1188 = 0x15F0</code>,于是此时ecx寄存器中存储的地址应是 <code>0x15F0</code>，看看这个地址位于哪里。</p>
+
+<pre><code class="language-cpp">$ objdump -h pic.so
+
+...
+18 .got          00000010  000015e0  000015e0  000005e0  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+19 .got.plt      0000001c  000015f0  000015f0  000005f0  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+20 .bss          0000000c  0000160c  0000160c  0000060c  2**2
+...
+</code></pre>
+
+<p><code>.got.plt</code> 段的起始地址就是 <code>0x15F0</code>，当然这是还没有装载时的地址，如果装载的话上面计算的地址都要加上共享对象装载的起始地址的，于是上面的两句实际上找到了 <code>.got.plt</code> 段的具体位置。</p>
+
+<p>最后在这个地址的基础上加上了偏移量 <code>0x24</code>，于是比对上面的段头表，我们可以看到实际上定位到了 <code>.bss</code> 段中，而对于没有初始化的全局变量，确实存放于该段中。</p>
+
+<h5 id="模块外部数据访问">模块外部数据访问</h5>
+
+<p>因为模块间的数据访问目标地址要等到装载时才能决定，所以相比于模块内的数据访问稍微麻烦一点。</p>
+
+<p>这种情况下，要使得地址代码无关，基本思想是把跟地址相关的部分放到数据段里面。ELF 的做法是在数据段里面建立一个指向这些变量的指针数组，也被称为全局偏移表（Global Offset Table，GOT）。代码需要引用此全局变量时，通过 GOT 中相对应的项间接引用即可。</p>
+
+<p><img src="/pic/2019/2019-06-18-linux-dynamic-link-02.png" alt="pic" /></p>
+
+<p>比如 bar() 要访问变量 b ，就会先找到 GOT ，根据其中变量所对应的项找到目标地址，每个变量对应一个 4 字节的地址。装载模块时链接器会查找每个变量所在地址，充填 GOT 中的项。</p>
+
+<pre><code class="language-cpp">00000460 &lt;bar&gt;:
+ 460:	55                   	push   %ebp
+ 461:	89 e5                	mov    %esp,%ebp
+ 463:	e8 40 00 00 00       	call   4a8 &lt;__i686.get_pc_thunk.cx&gt;
+ 468:	81 c1 88 11 00 00    	add    $0x1188,%ecx
+ 46e:	c7 81 24 00 00 00 01 	movl   $0x1,0x24(%ecx)
+ 475:	00 00 00 
+ 478:	8b 81 f8 ff ff ff    	mov    -0x8(%ecx),%eax
+ 47e:	c7 00 02 00 00 00    	movl   $0x2,(%eax)
+ 484:	5d                   	pop    %ebp
+ 485:	c3                   	ret 
+</code></pre>
+
+<p>上图中 <code>0x478</code>,<code>0x47e</code> 表示的是 bar() 函数中访问内部变量 b 的相应代码。前面说过 ecx 寄存器的值为 <code>.got.plt</code> 段的起始地址，此时在此地址基础上减去偏移量 <code>0x08</code>，实际上找到了 <code>0x15E8</code> 的位置。</p>
+
+<pre><code class="language-shell">$ objdump -h pic.so
+...
+18 .got          00000010  000015e0  000015e0  000005e0  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+19 .got.plt      0000001c  000015f0  000015f0  000005f0  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+20 .bss          0000000c  0000160c  0000160c  0000060c  2**2
+...
+</code></pre>
+
+<p>从上图段表中我们可以看到，<code>0x15E8</code> 的地址位于 <code>.got</code> 段中，且应为第三项，于是找到了变量 b 的绝对地址，从而给变量 b 赋值。</p>
+
+<p>为了验证这个地址是否真的是变量 b 的绝对地址，我们可以使用 readelf 查看动态链接文件的重定位表：</p>
+
+<pre><code class="language-shell">$ readelf -h pic.so
+
+Relocation section '.rel.dyn' at offset 0x2c0 contains 5 entries:
+ Offset     Info    Type            Sym.Value  Sym. Name
+0000151c  00000008 R_386_RELATIVE   
+000015e0  00000106 R_386_GLOB_DAT    00000000   __gmon_start__
+000015e4  00000206 R_386_GLOB_DAT    00000000   _Jv_RegisterClasses
+000015e8  00000306 R_386_GLOB_DAT    00000000   b
+000015ec  00000506 R_386_GLOB_DAT    00000000   __cxa_finalize
+
+...
+</code></pre>
+
+<p>这里 <code>.rel.dyn</code> 实际上是对数据引用的修正，它所修正的位置位于 <code>.got</code> 段以及数据段。上图可以看到变量 b 的位置恰好是 <code>0x15E8</code> 且位于 <code>.got</code> 段的第三项。</p>
+
+<h5 id="模块外部调用-跳转">模块外部调用、跳转</h5>
+
+<p>上面模块间数据访问的方法理解后，这种就很好理解，就是在 GOT 中符号所对应的并不再是变量地址，而是函数的入口地址，从而通过 GOT 中找到相应的项然后找到相应的入口地址，从而跳转执行。</p>
+
+<p>但是实际的 ELF 采用了一种更加复杂和精巧的方法： 延迟绑定（PLT）技术。</p>
+
+<h3 id="延迟绑定-plt">延迟绑定（PLT）</h3>
+
+<p>动态链接的确比起静态链接来说有许多优势，节省内存、更易更新维护等，但是它也因此付出了一定的代价，使得ELF程序在静态链接下摇臂动态链接稍微快些，根据前面所讲，这些代价来自于两方面：</p>
+
+<ul>
+<li>动态链接在装载后进行链接工作。</li>
+<li>动态链接对于全局和静态的数据访问要进行复杂的 GOT 定位，然后进行间接寻址。</li>
+</ul>
+
+<p>其实很多情况下，在一个程序运行过程中，很多函数是调用不到的，所以 ELF 采用了一种叫做 <code>PLT (Procedure Linkge Table)</code> 的做法，即当函数第一次被用到时才进行绑定（符号查找、重定位等操作），如果用不到就不进行绑定。</p>
+
+<h4 id="延迟绑定实现原理">延迟绑定实现原理</h4>
+
+<p>当程序需要访问共享对象（Libc.so）的函数（bar 函数）时，这时候需要调用动态链接器中的某个专门函数来完成地址的绑定工作。在Glibc 中完成地址绑定的函数为 <code>_dl_runtime_resolve()</code> ，类似于这种调用实现绑定工作：</p>
+
+<pre><code class="language-cpp">_dl_runtime_resolve（libc.so, bar）;
+</code></pre>
+
+<p>PLT 为了实现延迟绑定，在这个过程中间又增加了一层间接跳转。调用函数并不直接通过 GOT 跳转，而是通过一个叫做 PLT 项的结构来进行跳转。每个外部函数在 PLT 中都有一个相应的项，比如 bar() 函数在 PLT 中的项的地址称为 <code>bar@plt</code>。</p>
+
+<pre><code>bar@plt：
+jmp *(bar@GOT)
+push n
+push moduleID
+jump _dl_runtime_resolve
+</code></pre>
+
+<p>这是一个 <code>bar@plt</code> 的实现，即在 GOT 的基础上多加的一层间接跳转的具体代码。</p>
+
+<ul>
+<li>第一句 <code>jmp</code> 语句是一个间接跳转，这里就是 GOT 中保存 bar() 的相应项。如果链接器已经初始化了该项（填入了正确地址），那么就会直接跳转到 bar() 函数执行；链接器在初始化阶段的实际地址是下一条指令地址，于是相当于执行下一句。</li>
+<li>第二句 <code>push</code>，相当于 bar 这个符号在重定位表 <code>.rel.dyn</code> 中的下标，即函数的编号。</li>
+<li>第三句 <code>push</code>，上面已经压入了发生绑定的函数编号，下面就是模块了，于是压入模块 ID。</li>
+<li>最后跳转 <code>_dl_runtime_resolve</code>，这个函数就是用来根据模块 ID 及函数编号进行绑定的函数，于是完成了绑定的功能。接下来第二次跳转函数的地址，就可以进而执行具体函数的内容，返回时根据堆栈中保存的 <code>EIP</code> 直接返回到调用者，不再继续执行 <code>bar@plt</code> 第二条开始的代码。</li>
+</ul>
+
+<h4 id="延迟绑定实例">延迟绑定实例</h4>
+
+<p>实际的 PLT 基本结构如下图所示：</p>
+
+<p><img src="/pic/2019/2019-06-18-linux-dynamic-link-03.png" alt="pic" /></p>
+
+<p>接下来我们结合上图来重新分析 foo() 函数是如何调用其他外部函数的。</p>
+
+<pre><code>00000486 &lt;foo&gt;:
+ 486:	55                   	push   %ebp
+ 487:	89 e5                	mov    %esp,%ebp
+ 489:	53                   	push   %ebx
+ 48a:	83 ec 04             	sub    $0x4,%esp
+ 48d:	e8 c7 ff ff ff       	call   459 &lt;__i686.get_pc_thunk.bx&gt;
+ 492:	81 c3 5e 11 00 00    	add    $0x115e,%ebx
+ 498:	e8 ab fe ff ff       	call   348 &lt;bar@plt&gt;
+ 49d:	e8 c6 fe ff ff       	call   368 &lt;ext@plt&gt;
+ 4a2:	83 c4 04             	add    $0x4,%esp
+ 4a5:	5b                   	pop    %ebx
+ 4a6:	5d                   	pop    %ebp
+ 4a7:	c3                   	ret    
+</code></pre>
+
+<p>这里 <code>call 348 &lt;bar@plt&gt;</code> 跳转到了 <code>bar@plt</code> 的代码，于是很明显这里调用函数的目的是必须在 <code>.got.plt</code> 中找寻具体项从而找到具体地址。</p>
+
+<pre><code>00000348 &lt;bar@plt&gt;:
+ 348:	ff a3 0c 00 00 00    	jmp    *0xc(%ebx)
+ 34e:	68 00 00 00 00       	push   $0x0
+ 353:	e9 e0 ff ff ff       	jmp    338 &lt;_init+0x30&gt;
+</code></pre>
+
+<ul>
+<li>第一句跳转到了 <code>.got.plt</code> 的第四项的位置（ ebx 指向 <code>.got.plt</code> 的地址），根据前面的原理，这里的跳转的应该是 bar() 的具体项从而具体找到了 bar() 的地址，不过这是第一次执行，还没有绑定，于是跳转下一句。</li>
+<li>第二句 <code>push</code>，根据前面原理中，这里压入的应该是在重定位表 <code>.rel.plt</code> 中 bar 这个符号的下标，即表中第一个重定位入口。</li>
+
+<li><p>第三句跳转到下面这个函数。</p>
+
+<pre><code>00000338 &lt;bar@plt-0x10&gt;:
+338:	ff b3 04 00 00 00    	pushl  0x4(%ebx)
+33e:	ff a3 08 00 00 00    	jmp    *0x8(%ebx)
+344:	00 00                	add    %al,(%eax)
+	...
+</code></pre></li>
+</ul>
+
+<p>具体的函数中，第一句将模块id压入，第二句跳转到具体执行绑定所用的函数。于是经过上面的步骤，PLT 的延迟绑定技术得以实现，使得动态链接的性能得以提高。</p>
+
+<h3 id="总结">总结</h3>
+
+<p>本篇首先分析了使用动态链接库的原因，即能够更加有效地利用内存和磁盘资源，可以更加方便地维护升级程序。</p>
+
+<p>接着重点分析了动态链接中的装载时重定位和地址无关代码，以解决动态链接的绝对地址引用问题，地址无关代码的缺点是运行速度慢，但可以实现代码段在各个进程之间的共享。同时还介绍了 ELF 的延迟绑定 PLT 技术。</p>
+
+<h3 id="参考阅读">参考阅读</h3>
+
+<p>《程序员的自我修养-链接、装载与库》- 第 7 章 动态链接</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2019/06/18/linux-dynamic-link/">https://maodanp.github.io/2019/06/18/linux-dynamic-link/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/linux/">
+                            <i class="fa fa-tags"></i>
+                            linux
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2019/06/11/linux-static-link/">Linux的静态链接</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年06月11日)</span></li><li id="li-rels"><a href="/2019/06/02/linux-virtual-space/">Linux的进程虚拟地址空间</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年06月02日)</span></li><li id="li-rels"><a href="/2019/05/26/linux-syscall/">Linux的系统调用</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年05月26日)</span></li><li id="li-rels"><a href="/2019/05/19/linux-elf/">目标文件的那些事</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2019年05月19日)</span></li><li id="li-rels"><a href="/2015/07/07/linux-iptables/">Linux防火墙</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2015年07月07日)</span></li></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous disabled"><a href="#"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2019/06/11/linux-static-link/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#示例">示例</a>
+<ul>
+<li><a href="#动态链接流程">动态链接流程</a></li>
+<li><a href="#动态链接程序地址空间分布">动态链接程序地址空间分布</a></li>
+</ul></li>
+<li><a href="#地址无关代码">地址无关代码</a>
+<ul>
+<li><a href="#装载时重定位">装载时重定位</a></li>
+<li><a href="#地址无关代码-1">地址无关代码</a>
+<ul>
+<li><a href="#模块内部调用-跳转">模块内部调用、跳转</a></li>
+<li><a href="#模块内部数据访问">模块内部数据访问</a></li>
+<li><a href="#模块外部数据访问">模块外部数据访问</a></li>
+<li><a href="#模块外部调用-跳转">模块外部调用、跳转</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#延迟绑定-plt">延迟绑定（PLT）</a>
+<ul>
+<li><a href="#延迟绑定实现原理">延迟绑定实现原理</a></li>
+<li><a href="#延迟绑定实例">延迟绑定实例</a></li>
+</ul></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#参考阅读">参考阅读</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2019  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+
