@@ -4,9 +4,168 @@
     <link>https://maodanp.github.io/</link>
     <language>en-us</language>
     <author></author>
-    <rights>(C) 2019</rights>
-    <updated>2019-06-18 00:00:00 &#43;0000 UTC</updated>
+    <rights>(C) 2020</rights>
+    <updated>2020-05-31 00:00:00 &#43;0000 UTC</updated>
 
+    
+      
+        <item>
+          <title>C&#43;&#43; 内存分配与 RAII</title>
+          <link>https://maodanp.github.io/2020/05/31/cpp_raii/</link>
+          <pubDate>Sun, 31 May 2020 00:00:00 UTC</pubDate>
+          <author></author>
+          <guid>https://maodanp.github.io/2020/05/31/cpp_raii/</guid>
+          <description>&lt;p&gt;本篇主要描述 &lt;code&gt;C++&lt;/code&gt; 的内存分配方式，以及 &lt;code&gt;RAII&lt;/code&gt; 、智能指针。&lt;/p&gt;
+
+&lt;p&gt;初入职场时，&lt;code&gt;C++&lt;/code&gt; 是唯一的开发语言。干了两年多年，感觉互联网是风口，然后毫不犹豫的跳到了一家互联网创业公司，使用的编程语言是 &lt;code&gt;Go&lt;/code&gt; + &lt;code&gt;Python&lt;/code&gt; 。没干两年又重新跳回了传统 IT 企业，用 &lt;code&gt;C++&lt;/code&gt; 重操旧业。既然是重操旧业，就得好好将手上的这把利器打磨打磨。&lt;/p&gt;
+
+&lt;h3 id=&#34;堆-栈&#34;&gt;堆、栈&lt;/h3&gt;
+
+&lt;p&gt;刚入职场那会，C++11 还没被广泛应用，记得当时分配/释放资源也是凭感觉：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;对于简单 &lt;code&gt;POD&lt;/code&gt; 类型（Plain Old Data）或者对象较小的类一般都是直接在栈上分配资源；&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;对于对象很大的或者在对象大小在编译器不能确定的，一般在堆上分配资源。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;对于堆上分配内存，我们只需要正确使用 new 和 delete 即可。每个 new 出来的对象都应该用 delete 来释放。但是有时候就忘记 delete 或者由于中间代码抛出异常，导致最后 delete 得不到执行，所以也花费了很多时间去查内存泄漏。&lt;/p&gt;
+
+&lt;p&gt;比如如下代码，如果中间抛出异常，delete 就执行不到了。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;void foo()
+{
+  bar* ptr = new bar();
+  …
+  delete ptr;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;栈上分配/释放内存就容易的多了，跟所在函数的生命周期绑在一起。当函数执行完成，这些内存也自然就释放掉了。对于含有构造和析构函数的非 POD 类型，栈上的内存分配也同样有效，编译器能自动调用析构函数，包括在函数执行发生异常的情况下（称之为栈展开 stack unwinding）。&lt;/p&gt;
+
+&lt;p&gt;下面展示了异常抛出时析构调用的情况：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;
+#include &amp;lt;stdio.h&amp;gt;
+
+class Obj {
+public:
+  Obj() { puts(&amp;quot;Obj()&amp;quot;); }
+  ~Obj() { puts(&amp;quot;~Obj()&amp;quot;); }
+};
+
+void foo(int n)
+{
+  Obj obj;
+  if (n == 42)
+    throw &amp;quot;life, the universe and everything&amp;quot;;
+}
+
+int main()
+{
+  try {
+    foo(41);
+    foo(42);
+  }
+  catch (const char* s) {
+    puts(s);
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;执行结果：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Obj()
+~Obj()
+Obj()
+~Obj()
+life, the universe and everything
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;raii&#34;&gt;RAII&lt;/h3&gt;
+
+&lt;p&gt;这种资源管理的方式其实很早就在 Effective C++ 中读到过，但是直到现在的项目，才将 RAII 用到了极致，得益于这种资源管理模式，这几年也没怎么关注开发产品的内存泄漏问题。&lt;/p&gt;
+
+&lt;p&gt;RAII(resource acquisition is initialization) 是 C++ 特有的资源管理方式。
+RAII 依托&lt;code&gt;栈&lt;/code&gt;和&lt;code&gt;析构函数&lt;/code&gt;，来对所有资源进行管理。对 RAII 的使用，使得 C++ 不需要类似于 Java 那样的垃圾收集方法，也能够有效的对内存进行管理。&lt;/p&gt;
+
+&lt;p&gt;RAII 的精髓就是两点：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;获得资源后立即初始化对象。&lt;/li&gt;
+&lt;li&gt;运用析构函数确保资源被释放。一旦对象被销毁（ 离开作用域或者从队列中 remove ），其析构函数自然会被调用，于是资源被释放。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;比如可以这样使用：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;std::mutex mtx;
+void some_func()
+{
+  std::lock_guard&amp;lt;std::mutex&amp;gt; guard(mtx);
+  // 做需要同步的工作
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;智能指针&#34;&gt;智能指针&lt;/h3&gt;
+
+&lt;h4 id=&#34;常见智能指针&#34;&gt;常见智能指针&lt;/h4&gt;
+
+&lt;p&gt;智能指针即运用了 RAII 的资源管理方式，能够防止手动使用 new/delete 导致的内存泄漏问题。关于智能指针，常用的有 &lt;code&gt;shared_ptr&lt;/code&gt; 和 &lt;code&gt;weak_ptr&lt;/code&gt;。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;shared_ptr 允许多个该智能指针共享地拥有同一个对象，shared_ptr 实现上采用了引用计数，所以一旦一个 shared_ptr 指针放弃了 &amp;ldquo;所有权&amp;rdquo; （ reset 或离开作用域等等 ），其他的 shared_ptr 对该对象内存的引用不受影响。&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;weak_ptr 可以指向 shared_ptr 指针指向的对象内存，却并不拥有该内存。而使用 weak_ptr 成员 lock, 则可返回其指向内存的一个 shared_ptr 对象，如果所在对象内存无效时，返回指针空值，weak_ptr 可以有效防止 shared_ptr 循环引用的问题。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&#34;shared-ptr的陷阱&#34;&gt;shared_ptr的陷阱&lt;/h4&gt;
+
+&lt;ol&gt;
+&lt;li&gt;不要与裸指针混用&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;int *ptr(new int(10));
+shared_ptr&amp;lt;int&amp;gt; sp1(x);
+shared_ptr&amp;lt;int&amp;gt; sp2(x);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;虽然 sp1、sp2 都指向 ptr 所指的内存，但他们是独立的，并且裸指针本身也很危险，ptr 随时变成&lt;code&gt;空悬指针（ dangling pointer ）&lt;/code&gt;，但是 sp1、sp2 都不知道。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;避免循环引用&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;memory&amp;gt;
+using namespace std;
+
+class AObj;
+class BObj;
+
+class AObj {
+    public:
+    std::shared_ptr&amp;lt;BObj&amp;gt; bPtr;
+    ~AObj() { cout &amp;lt;&amp;lt; &amp;quot;AObj is deleted!&amp;quot;&amp;lt;&amp;lt;endl; }
+};
+
+class BObj {
+    public:
+    std::shared_ptr&amp;lt;AObj&amp;gt; APtr;
+    ~BObj() { cout &amp;lt;&amp;lt; &amp;quot;BObj is deleted!&amp;quot; &amp;lt;&amp;lt; endl; }
+};
+
+int main()
+{
+    auto ap = make_shared&amp;lt;AObj&amp;gt;();
+    auto bp = make_shared&amp;lt;BObj&amp;gt;();
+    ap-&amp;gt;bPtr = bp;
+    bp-&amp;gt;APtr = ap;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;智能指针最大的一个陷阱是循环引用，循环引用会导致内存泄漏。解决方法是用 weak_ptr 打破循环。&lt;/p&gt;</description>
+        </item>
+      
     
       
         <item>

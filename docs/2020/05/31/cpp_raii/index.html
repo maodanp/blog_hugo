@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="author" content="Danping">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="本篇主要描述 C&#43;&#43; 的内存分配方式，以及 RAII 、智能指针。">
+<meta property="og:url" content="https://maodanp.github.io/"><meta property="og:type" content="article">
+<meta property="og:title" content="C&#43;&#43; 内存分配与 RAII - Danping&#39;s blog"><meta property="og:site_name" content="Danping&#39;s blog">
+
+<title>
+    
+    C&#43;&#43; 内存分配与 RAII
+    
+</title>
+
+<link rel="stylesheet" href="/onlyone/onlyone.css">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<script src="/onlyone/onlyone.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/index.xml">
+</head>
+<body>
+
+
+<div class="container">
+    <header class="nav">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="/">Danping&#39;s blog</a>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="/categories/技术志/">技术志</a></li>
+                        <li><a href="/categories/工具箱/">工具箱</a></li>
+                        <li><a href="/categories/杂谈集/">杂谈集</a></li>
+                        <li><a href="/tags/">分类</a></li>
+                        <li><a href="/about/">关于</a></li>
+                        <li>
+                            <form method="get" style="padding: 8px" action="https://www.google.com/search" target="_blank">
+                                <input type="hidden" name="sitesearch" value="maodanp.github.io"/>
+                                <input type="text" class="form-control" name="q" placeholder="Press enter to search">
+                            </form>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+<div class="row">
+    <div class="col-md-8">
+        <article class="post single">
+
+            <header>
+                <div class="post-date">
+                    2020年05月31日 
+                </div>
+                <h1 class="post-title">C&#43;&#43; 内存分配与 RAII</h1>
+            </header>
+
+            <div class="post-content">
+                <p>本篇主要描述 <code>C++</code> 的内存分配方式，以及 <code>RAII</code> 、智能指针。</p>
+
+<p>初入职场时，<code>C++</code> 是唯一的开发语言。干了两年多年，感觉互联网是风口，然后毫不犹豫的跳到了一家互联网创业公司，使用的编程语言是 <code>Go</code> + <code>Python</code> 。没干两年又重新跳回了传统 IT 企业，用 <code>C++</code> 重操旧业。既然是重操旧业，就得好好将手上的这把利器打磨打磨。</p>
+
+<h3 id="堆-栈">堆、栈</h3>
+
+<p>刚入职场那会，C++11 还没被广泛应用，记得当时分配/释放资源也是凭感觉：</p>
+
+<ul>
+<li><p>对于简单 <code>POD</code> 类型（Plain Old Data）或者对象较小的类一般都是直接在栈上分配资源；</p></li>
+
+<li><p>对于对象很大的或者在对象大小在编译器不能确定的，一般在堆上分配资源。</p></li>
+</ul>
+
+<p>对于堆上分配内存，我们只需要正确使用 new 和 delete 即可。每个 new 出来的对象都应该用 delete 来释放。但是有时候就忘记 delete 或者由于中间代码抛出异常，导致最后 delete 得不到执行，所以也花费了很多时间去查内存泄漏。</p>
+
+<p>比如如下代码，如果中间抛出异常，delete 就执行不到了。</p>
+
+<pre><code class="language-cpp">void foo()
+{
+  bar* ptr = new bar();
+  …
+  delete ptr;
+}
+</code></pre>
+
+<p>栈上分配/释放内存就容易的多了，跟所在函数的生命周期绑在一起。当函数执行完成，这些内存也自然就释放掉了。对于含有构造和析构函数的非 POD 类型，栈上的内存分配也同样有效，编译器能自动调用析构函数，包括在函数执行发生异常的情况下（称之为栈展开 stack unwinding）。</p>
+
+<p>下面展示了异常抛出时析构调用的情况：</p>
+
+<pre><code class="language-cpp">
+#include &lt;stdio.h&gt;
+
+class Obj {
+public:
+  Obj() { puts(&quot;Obj()&quot;); }
+  ~Obj() { puts(&quot;~Obj()&quot;); }
+};
+
+void foo(int n)
+{
+  Obj obj;
+  if (n == 42)
+    throw &quot;life, the universe and everything&quot;;
+}
+
+int main()
+{
+  try {
+    foo(41);
+    foo(42);
+  }
+  catch (const char* s) {
+    puts(s);
+  }
+}
+</code></pre>
+
+<p>执行结果：</p>
+
+<pre><code>Obj()
+~Obj()
+Obj()
+~Obj()
+life, the universe and everything
+</code></pre>
+
+<h3 id="raii">RAII</h3>
+
+<p>这种资源管理的方式其实很早就在 Effective C++ 中读到过，但是直到现在的项目，才将 RAII 用到了极致，得益于这种资源管理模式，这几年也没怎么关注开发产品的内存泄漏问题。</p>
+
+<p>RAII(resource acquisition is initialization) 是 C++ 特有的资源管理方式。
+RAII 依托<code>栈</code>和<code>析构函数</code>，来对所有资源进行管理。对 RAII 的使用，使得 C++ 不需要类似于 Java 那样的垃圾收集方法，也能够有效的对内存进行管理。</p>
+
+<p>RAII 的精髓就是两点：</p>
+
+<ul>
+<li>获得资源后立即初始化对象。</li>
+<li>运用析构函数确保资源被释放。一旦对象被销毁（ 离开作用域或者从队列中 remove ），其析构函数自然会被调用，于是资源被释放。</li>
+</ul>
+
+<p>比如可以这样使用：</p>
+
+<pre><code class="language-cpp">std::mutex mtx;
+void some_func()
+{
+  std::lock_guard&lt;std::mutex&gt; guard(mtx);
+  // 做需要同步的工作
+}
+</code></pre>
+
+<h3 id="智能指针">智能指针</h3>
+
+<h4 id="常见智能指针">常见智能指针</h4>
+
+<p>智能指针即运用了 RAII 的资源管理方式，能够防止手动使用 new/delete 导致的内存泄漏问题。关于智能指针，常用的有 <code>shared_ptr</code> 和 <code>weak_ptr</code>。</p>
+
+<ul>
+<li><p>shared_ptr 允许多个该智能指针共享地拥有同一个对象，shared_ptr 实现上采用了引用计数，所以一旦一个 shared_ptr 指针放弃了 &ldquo;所有权&rdquo; （ reset 或离开作用域等等 ），其他的 shared_ptr 对该对象内存的引用不受影响。</p></li>
+
+<li><p>weak_ptr 可以指向 shared_ptr 指针指向的对象内存，却并不拥有该内存。而使用 weak_ptr 成员 lock, 则可返回其指向内存的一个 shared_ptr 对象，如果所在对象内存无效时，返回指针空值，weak_ptr 可以有效防止 shared_ptr 循环引用的问题。</p></li>
+</ul>
+
+<h4 id="shared-ptr的陷阱">shared_ptr的陷阱</h4>
+
+<ol>
+<li>不要与裸指针混用</li>
+</ol>
+
+<pre><code class="language-cpp">int *ptr(new int(10));
+shared_ptr&lt;int&gt; sp1(x);
+shared_ptr&lt;int&gt; sp2(x);
+</code></pre>
+
+<p>虽然 sp1、sp2 都指向 ptr 所指的内存，但他们是独立的，并且裸指针本身也很危险，ptr 随时变成<code>空悬指针（ dangling pointer ）</code>，但是 sp1、sp2 都不知道。</p>
+
+<ol>
+<li>避免循环引用</li>
+</ol>
+
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+using namespace std;
+
+class AObj;
+class BObj;
+
+class AObj {
+    public:
+    std::shared_ptr&lt;BObj&gt; bPtr;
+    ~AObj() { cout &lt;&lt; &quot;AObj is deleted!&quot;&lt;&lt;endl; }
+};
+
+class BObj {
+    public:
+    std::shared_ptr&lt;AObj&gt; APtr;
+    ~BObj() { cout &lt;&lt; &quot;BObj is deleted!&quot; &lt;&lt; endl; }
+};
+
+int main()
+{
+    auto ap = make_shared&lt;AObj&gt;();
+    auto bp = make_shared&lt;BObj&gt;();
+    ap-&gt;bPtr = bp;
+    bp-&gt;APtr = ap;
+}
+</code></pre>
+
+<p>智能指针最大的一个陷阱是循环引用，循环引用会导致内存泄漏。解决方法是用 weak_ptr 打破循环。</p>
+            </div>
+            
+            <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
+                <div>
+                    <p style="margin-top:0px;">作者：<a target="_blank" href="https://maodanp.github.io">Danping Mao</a>
+                    <br />本文出处：<a target="_blank" href="https://maodanp.github.io/2020/05/31/cpp_raii/">https://maodanp.github.io/2020/05/31/cpp_raii/</a>
+                    <br />
+                    文章版权归本人所有，欢迎转载，共同学习、共同进步。</p>
+                </div>
+            </div>
+
+            <aside>
+                
+                <ul class="list-inline post-tags">
+                    
+                    <li>
+                        <a href="/tags/c&#43;&#43;/">
+                            <i class="fa fa-tags"></i>
+                            C&#43;&#43;
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                
+                
+                <h4 id="real-rels">相关文章</h4>
+                <ul class="post-rels" id="real-rels"></ul>
+                
+            </aside>
+                
+            
+            <footer>
+                <nav>
+                    <ul class="pager">
+
+                        
+                        <li class="previous disabled"><a href="#"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        
+
+                        <li><a href="/post/">All Posts</a></li>
+
+                        
+                        <li class="next"><a href="/2019/06/18/linux-dynamic-link/">Next <span aria-hidden="true">&rarr;</span></a></li>
+                        
+
+                    </ul>
+                </nav>
+            </footer>
+
+        </article>
+    </div>
+    <div class="col-md-4">
+        
+<aside>
+        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
+            <div class="panel-heading">
+                <h2 class="panel-title">Catalog</h2>
+            </div>
+
+            <nav id="TableOfContents">
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#堆-栈">堆、栈</a></li>
+<li><a href="#raii">RAII</a></li>
+<li><a href="#智能指针">智能指针</a>
+<ul>
+<li><a href="#常见智能指针">常见智能指针</a></li>
+<li><a href="#shared-ptr的陷阱">shared_ptr的陷阱</a></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+        </div>
+</aside>
+
+    </div>
+</div>
+
+</div>
+<hr>
+
+<footer class="container copy">
+    <p>&copy; 2020  Danping&#39;s blog </p>
+	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
+</footer>
+
+<script>
+var children = $("#TableOfContents").children().first().children().first().children().first().children().first().children().first();
+$("#TableOfContents").children().first().remove();
+$("#TableOfContents").append(children);
+
+var real = $("li#li-rels:lt(8)");
+$("ul.post-rels").children().remove();
+$("ul.post-rels").append(real);
+if ($("ul.post-rels").children().length == 0) {
+    $("#real-rels").remove();
+}
+</script>
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?ace3ec99de96c4080ead1eb8d52db3b3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-92600390-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+
+<script type="text/javascript"
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+});
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    // Fix <code> tags after MathJax finishes running. This is a
+    // hack to overcome a shortcoming of Markdown. Discussion at
+    // https://github.com/mojombo/jekyll/issues/199
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i &lt; all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+</html>
+
