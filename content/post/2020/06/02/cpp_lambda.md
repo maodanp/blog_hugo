@@ -1,6 +1,8 @@
 ---
 categories:
 - "技术志"
+tags:
+- "C++"
 date: 2020-06-02
 title: "C++ lambda 函数"
 url: "/2020/06/02/cpp_lambda"
