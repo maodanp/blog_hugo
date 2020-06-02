@@ -2,7 +2,7 @@
 categories:
 - "技术志"
 date: 2020-06-02
-title: "lambda 函数"
+title: "C++ lambda 函数"
 url: "/2020/06/02/cpp_lambda"
 ---
 本篇主要描述 lambda 函数以及跟仿函数的关联，最后介绍 lambda 的使用陷阱。
@@ -68,7 +68,7 @@ int main()
 ~~~
 可以看出 lambda 和仿函数有着相同的内涵：`捕捉一些变量作为初始状态，并接受参数进行运算`。在 C++ 中，lambda 可以视为仿函数的一种 “语法糖”。
 
-![pic](/pic/2019/2020-06-02-cpp_lambda.png)
+![pic](/pic/2020/2020-06-02-cpp_lambda.png)
 
 但是 lambda 不是仿函数的完全替代者，由于 lambda 的捕捉列表的限制（仅仅能够捕捉到负作用域的非静态变量，而对于超出这个范围的变量是不能被捕捉的）。
 

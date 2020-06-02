@@ -3,6 +3,11 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>https://maodanp.github.io/2020/06/02/cpp_lambda/</loc>
+    <lastmod>2020-06-02T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://maodanp.github.io/categories/</loc>
     <lastmod>2020-06-02T00:00:00+00:00</lastmod>
     <priority>0</priority>
@@ -18,11 +23,6 @@
     <loc>https://maodanp.github.io/post/</loc>
     <lastmod>2020-06-02T00:00:00+00:00</lastmod>
     <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://maodanp.github.io/2020/06/02/cpp_lambda/</loc>
-    <lastmod>2020-06-02T00:00:00+00:00</lastmod>
   </url>
   
   <url>

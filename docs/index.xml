@@ -10,7 +10,7 @@
     
       
         <item>
-          <title>lambda 函数</title>
+          <title>C&#43;&#43; lambda 函数</title>
           <link>https://maodanp.github.io/2020/06/02/cpp_lambda/</link>
           <pubDate>Tue, 02 Jun 2020 00:00:00 UTC</pubDate>
           <author></author>
@@ -81,7 +81,7 @@ int main()
 
 &lt;p&gt;可以看出 lambda 和仿函数有着相同的内涵：&lt;code&gt;捕捉一些变量作为初始状态，并接受参数进行运算&lt;/code&gt;。在 C++ 中，lambda 可以视为仿函数的一种 “语法糖”。&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2019/2020-06-02-cpp_lambda.png&#34; alt=&#34;pic&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://maodanp.github.io/pic/2020/2020-06-02-cpp_lambda.png&#34; alt=&#34;pic&#34; /&gt;&lt;/p&gt;
 
 &lt;p&gt;但是 lambda 不是仿函数的完全替代者，由于 lambda 的捕捉列表的限制（仅仅能够捕捉到负作用域的非静态变量，而对于超出这个范围的变量是不能被捕捉的）。&lt;/p&gt;
 
