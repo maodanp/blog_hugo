@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Tue, 02 Jun 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 11 Jun 2020 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://maodanp.github.io/tags/c++/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>C&#43;&#43; 右值引用和移动语义</title>
+      <link>https://maodanp.github.io/2020/06/11/cpp_move/</link>
+      <pubDate>Thu, 11 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/06/11/cpp_move/</guid>
+      <description>&lt;p&gt;C++11 引入的右值引用和移动语义，可以避免无谓的复制，提高了程序性能。&lt;/p&gt;</description>
+    </item>
     
     <item>
       <title>C&#43;&#43; lambda 函数</title>
