@@ -72,21 +72,13 @@
 
             <div class="post-content">
                 <p>该篇作为系列(二)，自然要更深入一层。本文翻译自<a href="https://www.goinggo.net/2014/11/error-handling-in-go-part-ii.html">Error Handling In Go, Part II</a>，作者在该篇中将教我们怎么写自定义error接口，并且根据error如何识别具体的错误。</p>
-
 <h3 id="简介">简介</h3>
-
 <p>在第一部分中，我们学习了<code>error</code>接口，以及标准库如何通用<code>errors</code>包创建的<code>error</code>接口来提供支持的。 我们也学习了当错误发生时，我们如何识别是那种类型的错误。最后，我们看到在有些标准库中，如何对外提供<code>error</code>接口变量来帮助我们识别具体错误。</p>
-
 <p>知道如何创建以及使用<code>error</code>类型在Go语言中常常会使我们感到迷惑。大多数情况下，通过<code>errors</code>包创建的<code>error</code>接口值已经足够了，然后有时候调用者需要额外的基于上下文的信息，以便能够基于详细的错误处理做处理。这就是本篇文章要讲的自定义错误类型。</p>
-
 <p>在本篇文章我，我想将要学习如何自定义错误类型，以及给出两个标准库中的示例。其中每个示例都提供了关于如何实现自定义错误类型的非常有意思的实现方式。然后我们将会学习如何识别具体的错误接口值（值类型或者指针类型）。</p>
-
 <h3 id="net-包"><code>net</code> 包</h3>
-
 <p><code>net</code> 包中声明了一个自定义的错误类型—<code>OpError</code>. 在这个包的很多函数、方法中都将这个结构体的指针作为具体的类型（存储在返回的<code>error</code>接口值当中）：</p>
-
 <p><strong>Listing 1.1</strong></p>
-
 <pre><code>http://golang.org/src/pkg/net/dial.go
 
 01 func Listen(net, laddr string) (Listener, error) {
@@ -109,13 +101,9 @@
 18     return l, nil
 19 }
 </code></pre>
-
 <p>Listing 1.1 展示了<code>net</code>包中的<code>Listen</code>函数的实现。我们看到在04和13行中，<code>OpError</code>结构体的指针被创建了，并且作为<code>error</code>接口值返回。因为<code>OpError</code>结构体指针实现了<code>error</code>接口，这个指针能够存储在<code>error</code>接口值中并且返回。而在09和11行，<code>ListenTCP</code>和<code>ListenUnix</code>函数也能返回<code>OpError</code>结构体指针, 只是它们已经被包含在了返回的<code>error</code>接口值中。</p>
-
 <p>线面，让我来看下<code>OpError</code>结构的具体<strong>声明</strong>：</p>
-
 <p><strong>Listing 1.2</strong></p>
-
 <pre><code>http://golang.org/pkg/net/#OpError
 
 01 // OpError is the error type usually returned by functions in the net
@@ -137,15 +125,10 @@
 17     Err error
 18 }
 </code></pre>
-
 <p>Listing 1.2中显示了<code>OpError</code>结构的定义。其中前三个字段（07、11、14行）提供了当执行网络操作时，错误发生的上下文信息。17行第四个字段声明为一个<code>error</code>接口类型，这个字段将包含具体当错误发生时的真实信息，这个具体类型的值多数情况下会是一个<code>errorString</code>类型的指针。</p>
-
 <p>另外我们需要注意到：对于自定义的错误类型，Go语言中有一个约定俗成的规则，就是在自定义错误类型后面加<code>Error</code>后缀。基本上其他包中也是这么定义的。</p>
-
 <p>下面，我们来看看<code>OpError</code>的具体<strong>定义</strong>：</p>
-
 <p><strong>Listing 1.3</strong></p>
-
 <pre><code>http://golang.org/src/pkg/net/net.go
 
 01 func (e *OpError) Error() string {
@@ -163,17 +146,11 @@
 13     return s
 14 }
 </code></pre>
-
 <p>Listing 1.3中关于<code>error</code>接口的实现，我们能看到如何关联上下文与错误信息，从而产生基于上下的错误信息描述。这种包含上下文描述的错误能够帮助调用者关于如何处理错误提供更有价值性的参考。</p>
-
 <h3 id="json-包"><code>json</code> 包</h3>
-
 <p><code>json</code>包能够实现从编码后的JSON数据到原生的Go类型的转换，反之亦然。 所有可能返回的错误都是在包内部产生的。对于错误信息而言保留上下文信息显得至关重要，否则就不能对于发生的错误提供正确的信息。对于<code>json</code>包来说有包含多自定义的错误类型，而且这些类型都能够通过相同的函数或者方法返回。</p>
-
 <p>下面，我们来看下其中的一个自定义错误类型：</p>
-
 <p><strong>Listing 1.4</strong></p>
-
 <pre><code>http://golang.org/src/pkg/encoding/json/decode.go
 
 01 // An UnmarshalTypeError describes a JSON value that was
@@ -187,15 +164,10 @@
 09     return &quot;json: cannot unmarshal &quot; + e.Value + &quot; into Go value of type &quot; + e.Type.String()
 10 }
 </code></pre>
-
 <p>Listing 1.4 显示了<code>UnmarshalTypeError</code>类型的声明，以及对<code>error</code>接口的实现。这个结构通常对于那些JSON数据不能转换成原生的Go类型时发生的错误。这个结构包含两个字段，第一个(04行)包含了试图解码的值类型描述；第二个(05行)包含了试图转化成的Go类型的描述。08行是<code>error</code>接口的具体实现，它用于错误信息的上下文，并产生一个正确的错误信息。</p>
-
 <p>在这个例子中，<code>UnmarshalTypeError</code>类型本身提供了错误的上下文信息。 当有关于解码类型的错误发生时，就会返回基于该结构指针的<code>error</code>接口值作为返回。</p>
-
 <p>那么，当无效的参数传递到<code>unmarshal</code>函数呢，那返回的就不是<code>UnmarshalTypeError</code>类型指针了，而是<code>InvalidUnmarshalError</code>类型的指针：</p>
-
 <p><strong>Listing 1.5</strong></p>
-
 <pre><code>http://golang.org/src/pkg/encoding/json/decode.go
 
 01 // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
@@ -215,15 +187,10 @@
 15     return &quot;json: Unmarshal(nil &quot; + e.Type.String() + &quot;)&quot;
 16 }
 </code></pre>
-
 <p>Listing 1.5展示了<code>InvalidUnmarshalError</code>结构的声明以及对<code>error</code>接口的实现。这里也同样在错误中提供了上下文信息描述。这种实现方式能够帮助产生错误信息，产生的错误信息能够有助于调用者根据错误处理做准确的判断。</p>
-
 <h3 id="具体类型的定义">具体类型的定义</h3>
-
 <p>在<code>json</code>的<code>Unmarshal</code>函数中，<code>error</code>接口值返回的类型指针可能是<code>UnmarshalTypeError</code>，或<code>InvalidUnmarshalError</code>或是<code>errorString</code>类型：</p>
-
 <p><strong>Listing 1.6</strong></p>
-
 <pre><code>http://golang.org/src/pkg/encoding/json/decode.go
 
 01 func Unmarshal(data []byte, v interface{}) error {
@@ -262,15 +229,10 @@
 34     return d.savedError
 35 }
 </code></pre>
-
 <p>Listing 1.6，展示了作为<code>Unmarshal</code>函数调用返回的<code>error</code>接口值，存在的不同具体类型。 第27行，<code>unmarshal</code>方法返回了一个<code>InvalidUnmarshalError</code>类型的指针，第34行，返回了<code>decodeState</code>中的变量<code>savedError</code>，<strong>这个值可以是很多不同的具体类型的指针</strong>。</p>
-
 <p>通过以上我们了解到了<code>json</code>包是自定义了<code>error</code>类型作为上下文的错误信息，那我们如何区分这些具体值得类型，使得调用者能够根据详细描述做判断？</p>
-
 <p>下面给出一个示例，能够使得<code>Unmarshal</code>函数返回一个具体的<code>UnmarshalTypeError</code>类型的指针：</p>
-
 <p><strong>Listing 1.7</strong></p>
-
 <pre><code>http://play.golang.org/p/FVFo8mJLBV
 
 01 package main
@@ -299,13 +261,9 @@
 Output:
 2009/11/10 23:00:00 json: cannot unmarshal string into Go value of type int
 </code></pre>
-
 <p>Listing 1.7，展示了一个简单的代码，尝试将JSON格式数据转换成Go类型。在第15行，JSON数据包含一个名为<code>name</code>的字段，值为<code>bill</code>。 因为<code>user</code>类型中<code>Name</code>字段声明的是一个整型，<code>Unmarshal</code>函数返回了一个错误接口值，该值实际存储的是一个<code>UnmarshalTypeError</code>类型的具体指针。</p>
-
 <p>现在我们可以做上面的代码做些改变，对于同样的<code>Unmarshal</code>调用返回的<code>error</code>接口，存储的是不一样的具体指针类型：</p>
-
 <p><strong>Listing 1.8</strong></p>
-
 <pre><code>http://play.golang.org/p/n8dQFeHYVp
 
 01 package main
@@ -340,37 +298,26 @@ Output:
 
 Output:
 2009/11/10 23:00:00 json: Unmarshal(non-pointer main.user)
-2009/11/10 23:00:00 InvalidUnmarshalError: Type[main.user]  
+2009/11/10 23:00:00 InvalidUnmarshalError: Type[main.user]	
 </code></pre>
-
 <p>Then we do something interesting on lines 17 through 24:</p>
-
 <p>Listing 1.8，同样的代码我们做了小小的修改，在15行中我们传递了变量<code>u</code>的值，而不是它的地址。 这个改变导致了<code>Unmarshal</code>函数返回了一个错误接口值，它实际存储的是<code>InvalidUnmarshalError</code>这个具体的指针类型。</p>
-
 <p>对于17-24行，我们进行了错误的处理：</p>
-
 <p><strong>Listing 1.9</strong></p>
-
 <pre><code>    17     switch e := err.(type) {
-    18         case *json.UnmarshalTypeError:
-    19             log.Printf(&quot;UnmarshalTypeError: Value[%s] Type[%v]\n&quot;, e.Value, e.Type)
-    20         case *json.InvalidUnmarshalError:
-    21             log.Printf(&quot;InvalidUnmarshalError: Type[%v]\n&quot;, e.Type)
-    22         default:
-    23             log.Println(err)
-    24         }
+	18         case *json.UnmarshalTypeError:
+	19             log.Printf(&quot;UnmarshalTypeError: Value[%s] Type[%v]\n&quot;, e.Value, e.Type)
+	20         case *json.InvalidUnmarshalError:
+	21             log.Printf(&quot;InvalidUnmarshalError: Type[%v]\n&quot;, e.Type)
+	22         default:
+	23             log.Println(err)
+	24         }
 </code></pre>
-
 <p>在17行，我们加入了<code>switch</code>语句进行具体指针类型的识别（这个指针当然是存储在<code>error</code>接口值下的）。这里要注意如何在接口值转换中使用关键字类型的。我们也能够获取到具体类型的值,并且在每个<code>case</code>语句中使用它。</p>
-
 <p>在18、20行的<code>case</code>语句中，进行了不同具体类型的检测，然后执行了关于错误处理的操作。在Go中是普遍采这种方式来识别具体类型的值或者指针。这些值或指针是存储在在<code>error</code>接口值当中的。</p>
-
 <h3 id="总结">总结</h3>
-
 <p>我们所返回的函数或者方法中的<code>error</code>接口值，包含特定的运行上下文信息。它必须能够提供足够多的信息，以便调用者能够根据这些信息分辨。通常一个简单的错误消息就足够了，但是有时调用者需要知道更多信息。</p>
-
 <p>我们能够看出，在<code>net</code>包中，一个自定义的<code>error</code>类型，声明中包含了原始<code>error</code>以及关联的上下文信息。而在<code>json</code>包中，我们看到自定义的错误类型提供了上下文信息以及关联状态。 在两者中，保持错误关联的上下文信息是一个必要的因素。</p>
-
 <p>当传统的<code>error</code>接口值通过<code>errors</code>包创建, 并且提供了足够的信息，那么久使用它吧。这通常包含在标准库中，通常这些就已经足够了。如果你需要其他上下文信息以帮助调用者做具体决定，那么我们可以从标准库中找找线索，然后构建自定化<code>error</code>类型。</p>
             </div>
             
@@ -425,29 +372,8 @@ Output:
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#简介">简介</a></li>
-<li><a href="#net-包"><code>net</code> 包</a></li>
-<li><a href="#json-包"><code>json</code> 包</a></li>
-<li><a href="#具体类型的定义">具体类型的定义</a></li>
-<li><a href="#总结">总结</a></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

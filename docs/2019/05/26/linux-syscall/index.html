@@ -72,50 +72,30 @@
 
             <div class="post-content">
                 <p>系统调用是应用程序与操作系统内核之间的接口。本篇主要剖析 Linux 中系统调用的原理，详述系统调用从用户态到内核态的流程。</p>
-
 <h3 id="系统调用介绍">系统调用介绍</h3>
-
 <p>系统调用是操作系统为应用程序提供的一套接口，不仅包含应用程序运行所必需的支持，例如创建/退出进程，进程内存管理，也有对系统资源的访问，如文件、网络、进程通信、硬件设备访问等。</p>
-
 <p>系统调用作为接口，首先必需要有明确的定义，这样应用程序才能正确使用它，其次是需要保持向后兼容，以保证系统升级后原来的应用程序也能够正常的使用。</p>
-
 <h4 id="系统调用与运行库">系统调用与运行库</h4>
-
 <p>由于系统调用是各个操作系统提供的，所以会导致不同的操作系统的系统调用不能兼容，而且系统调用的接口相对比较原始，没有经过很好的封装。</p>
-
 <p>运行库就是为了实现不同系统的兼容性，在系统调用与程序之间做了一层抽象层。作为语言级别的抽象库一般都封装的比较好，并且对于标准库，能够实现不同操作系统之间的兼容。</p>
-
 <p>例如 Linux 下的 <code>read/write</code> 系统调用在 C 语言中是 <code>fread/fwrite</code> 标准库, 在 C++ 中是<code>iofstream</code> 标准库。但是运行库为了各个操作系统之间的兼容性，只能取各平台的交集，但是一些系统独有的系统调用就不同通过标准库调用了。</p>
-
-<p><img src="/pic/2019/2019-05-26-linux-syscall-01.png" alt="pic" /></p>
-
+<p><img src="/pic/2019/2019-05-26-linux-syscall-01.png" alt="pic"></p>
 <p><em>系统调用与内核架构图</em></p>
-
 <h4 id="中断">中断</h4>
-
 <p>操作系统一般是通过中断来完成从用户态切换到内核态的。即通过硬件或者软件向操作系统发送一个请求，要求 CPU 暂停当前的工作转而去处理更加重要的事。</p>
-
 <p>中断一般具有两个属性，<strong>中断号</strong>以及<strong>中断处理程序(Interrupt Service Routine, ISR)</strong>。在内核中，有一个数组称为<strong>中断向量表(Interrupt Vector Table)</strong>，能够通过中断号找到对应的中断处理程序，并且中断处理程序执行完成之后，CPU 会返回继续执行用户态代码。</p>
-
-<p><img src="/pic/2019/2019-05-26-linux-syscall-02.png" alt="pic" />
+<p><img src="/pic/2019/2019-05-26-linux-syscall-02.png" alt="pic">
 <em>内核中断处理</em></p>
-
 <p>Linux 使用 <code>int 0x80</code> 来触发所有的系统调用，并且系统调用号用 <code>eax</code> 存储，这样中断服务程序就可以从 <code>eax</code> 里取得系统调用号，进而调用对应的函数。</p>
-
 <h3 id="系统调用的实现原理">系统调用的实现原理</h3>
-
 <p>用户程序调用所有的系统调用的流程都是类似的，包含三部分:</p>
-
 <ul>
 <li>用户程序需要设置系统调用的参数，传递给内核态。这里不同架构，以及不同系统的参数是不同的；</li>
 <li>对于 x86，系统调用最终会调用 <code>glibc</code> 的 <code>DO_CALL</code>，这也就是程序将工作交给内核的切入点；</li>
 <li>陷入内核态处理，并最终返回用户态，返回值也是内核完成对应任务后返回的值。如果内核执行该系统调用遇到错误，也会通过一个全局的错误号来存储错误信息。</li>
 </ul>
-
 <h4 id="系统调用参数传递">系统调用参数传递</h4>
-
 <p>在 i386 系统中，系统调用由 <code>int 0x80</code> 中断完成，各个通用寄存器用于传递参数，<code>eax</code> 寄存器用于系统调用的接口号。</p>
-
 <table>
 <thead>
 <tr>
@@ -128,7 +108,6 @@
 <th>arg6</th>
 </tr>
 </thead>
-
 <tbody>
 <tr>
 <td>i386</td>
@@ -139,7 +118,6 @@
 <td>edi</td>
 <td>ebp</td>
 </tr>
-
 <tr>
 <td>x86_64</td>
 <td>rdi</td>
@@ -151,23 +129,15 @@
 </tr>
 </tbody>
 </table>
-
 <p><em>x86 架构通用寄存器参数对照表</em></p>
-
 <ul>
 <li>参数都是通过寄存器传递的，并且如上图所示，32 位和 64 位的寄存器也不一样。</li>
 <li>系统调用的参数限制在 6 个</li>
 </ul>
-
 <h4 id="系统调用在-glibc-中的实现">系统调用在 glibc 中的实现</h4>
-
 <p>这里以常见的系统调用 open 为例，分析系统调用怎么实现的。glibc 的 open 函数定义如下：</p>
-
-<pre><code class="language-cpp">int open(const char *pathname, int flags, mode_t mode);
-</code></pre>
-
-<p>在 glibc 的源码中，有个文件 <code>syscalls.list</code>, 里面罗列了所有 glibc 的函数对应的系统调用，如下：</p>
-
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>pathname, <span style="color:#66d9ef">int</span> flags, mode_t mode);
+</code></pre></div><p>在 glibc 的源码中，有个文件 <code>syscalls.list</code>, 里面罗列了所有 glibc 的函数对应的系统调用，如下：</p>
 <pre><code># File name	Caller	Syscall name	Args	Strong name	Weak names
 
 accept		-	accept		Ci:iBN	__libc_accept	accept
@@ -175,70 +145,53 @@ access		-	access		i:si	__access	access
 ...
 open		-	open		Ci:siv	__libc_open __open open
 ...
-</code></pre>
-
-<p>我们来看 glibc 中的文件 <code>open.c</code> 的实现函数 <code>__libc_open</code> :</p>
-
-<pre><code class="language-cpp">int
-__libc_open (const char *file, int oflag, ...)
+</code></pre><p>我们来看 glibc 中的文件 <code>open.c</code> 的实现函数 <code>__libc_open</code> :</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span>
+<span style="color:#a6e22e">__libc_open</span> (<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>file, <span style="color:#66d9ef">int</span> oflag, ...)
 {
-  int mode = 0;
+  <span style="color:#66d9ef">int</span> mode <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
 
-  if (__OPEN_NEEDS_MODE (oflag))
+  <span style="color:#66d9ef">if</span> (__OPEN_NEEDS_MODE (oflag))
     {
       va_list arg;
       va_start (arg, oflag);
-      mode = va_arg (arg, int);
+      mode <span style="color:#f92672">=</span> va_arg (arg, <span style="color:#66d9ef">int</span>);
       va_end (arg);
     }
 
-  return SYSCALL_CANCEL (openat, AT_FDCWD, file, oflag, mode);
+  <span style="color:#66d9ef">return</span> SYSCALL_CANCEL (openat, AT_FDCWD, file, oflag, mode);
 }
-</code></pre>
-
-<p>最终，<code>SYSCALL_CANCEL</code> 在 <code>sysdep.h</code> 中的展开为：</p>
-
-<pre><code class="language-cpp">#define __INLINE_SYSCALL3(name, a1, a2, a3) \
-INLINE_SYSCALL (name, 3, a1, a2, a3)
-  
-#ifndef INLINE_SYSCALL
-#define INLINE_SYSCALL(name, nr, args...) __syscall_##name (args)
-#endif
-</code></pre>
-
-<p><code>__syscall_##name</code> 在代码中完全找不到, 应该是 makefile 中有调用 <code>make-syscalls.sh</code> 来生成嵌套代码, 其使用模板是 <code>syscall-template.S</code>。</p>
-
+</code></pre></div><p>最终，<code>SYSCALL_CANCEL</code> 在 <code>sysdep.h</code> 中的展开为：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define __INLINE_SYSCALL3(name, a1, a2, a3) \
+</span><span style="color:#75715e">INLINE_SYSCALL (name, 3, a1, a2, a3)
+</span><span style="color:#75715e"></span>  
+<span style="color:#75715e">#ifndef INLINE_SYSCALL
+</span><span style="color:#75715e">#define INLINE_SYSCALL(name, nr, args...) __syscall_##name (args)
+</span><span style="color:#75715e">#endif
+</span></code></pre></div><p><code>__syscall_##name</code> 在代码中完全找不到, 应该是 makefile 中有调用 <code>make-syscalls.sh</code> 来生成嵌套代码, 其使用模板是 <code>syscall-template.S</code>。</p>
 <p>在 <code>syscall-template.S</code> 中，定义了这个系统调用的调用方式：</p>
-
-<pre><code class="language-cpp">T_PSEUDO (SYSCALL_SYMBOL, SYSCALL_NAME, SYSCALL_NARGS)
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">T_PSEUDO (SYSCALL_SYMBOL, SYSCALL_NAME, SYSCALL_NARGS)
     ret
 T_PSEUDO_END (SYSCALL_SYMBOL)
 
-#define T_PSEUDO(SYMBOL, NAME, N)		PSEUDO (SYMBOL, NAME, N)
+<span style="color:#75715e">#define T_PSEUDO(SYMBOL, NAME, N)		PSEUDO (SYMBOL, NAME, N)
+</span><span style="color:#75715e"></span>
 
-
-#define PSEUDO(name, syscall_name, args)           \
-  .text;                                        \
-  ENTRY (name)                                    \
-    DO_CALL (syscall_name, args);                  \
-    cmpl $-4095, %eax;                               \
-    jae SYSCALL_ERROR_LABEL
-</code></pre>
-
-<p>对于任何一个系统调用，会调用 <code>DO_CALL</code>。对于 <strong>32 位系统</strong>而言，该实现（<code>i386/sysdep.h</code>）如下：</p>
-
-<pre><code class="language-cpp">#define DO_CALL(syscall_name, args)			          \
-    PUSHARGS_##args							  \
-    DOARGS_##args							  \
-    movl $SYS_ify (syscall_name), %eax;	      \
-    ENTER_KERNEL							  \
-    POPARGS_##args
-</code></pre>
-
-<p>其中 <code>movl $SYS_ify (syscall_name), %eax;</code> 表示将前面所讲的系统调用的调用号 <code>__NR_open</code> 赋给 <code>eax</code>。<code>ENTER_KERNEL</code> 宏展开就是 <code>int $0x80</code> 中断。</p>
-
+<span style="color:#75715e">#define PSEUDO(name, syscall_name, args)           \
+</span><span style="color:#75715e">  .text;                                        \
+</span><span style="color:#75715e">  ENTRY (name)                                    \
+</span><span style="color:#75715e">    DO_CALL (syscall_name, args);                  \
+</span><span style="color:#75715e">    cmpl $-4095, %eax;                               \
+</span><span style="color:#75715e">    jae SYSCALL_ERROR_LABEL
+</span></code></pre></div><p>对于任何一个系统调用，会调用 <code>DO_CALL</code>。对于 <strong>32 位系统</strong>而言，该实现（<code>i386/sysdep.h</code>）如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define DO_CALL(syscall_name, args)			          \
+</span><span style="color:#75715e">    PUSHARGS_##args							  \
+</span><span style="color:#75715e">    DOARGS_##args							  \
+</span><span style="color:#75715e">    movl $SYS_ify (syscall_name), %eax;	      \
+</span><span style="color:#75715e">    ENTER_KERNEL							  \
+</span><span style="color:#75715e">    POPARGS_##args
+</span></code></pre></div><p>其中 <code>movl $SYS_ify (syscall_name), %eax;</code> 表示将前面所讲的系统调用的调用号 <code>__NR_open</code> 赋给 <code>eax</code>。<code>ENTER_KERNEL</code> 宏展开就是 <code>int $0x80</code> 中断。</p>
 <p>其中，<code>__NR_open</code> 是一个宏，表示 open 系统调用的调用号。32 位系统，该宏的定义可以在 Linux 系统中 <code>/usr/include/asm/unistd_32.h</code> 中找到，64 位系统可以在 <code>/usr/include/asm/unistd_64.h</code> 中找到。以下是 32 位系统的调用号的宏定义：</p>
-
 <pre><code>#define __NR_restart_syscall      0
 #define __NR_exit         1
 #define __NR_fork         2
@@ -247,30 +200,17 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 #define __NR_open         5
 #define __NR_close        6
 ......
-</code></pre>
-
-<p>对于 64 位系统而言，<code>DO_CALL</code>实现（<code>x86_64/sysdep.h</code>）的定义如下：</p>
-
-<pre><code class="language-cpp">#define DO_CALL(syscall_name, args)					      \
-  lea SYS_ify (syscall_name), %rax;					      \
-  syscall
-</code></pre>
-
-<p>这里 64 位系统还是将系统调用名称转换为系统调用号，放在寄存器 <code>rax</code> 中。但是不是通过中断，而是通过 <code>syscall</code> 指令进行真正的内核调用。<code>syscall</code> 指令使用了一种特殊的寄存器，<strong>特殊模块寄存器（Model Specific Registers, MSR）</strong>。</p>
-
+</code></pre><p>对于 64 位系统而言，<code>DO_CALL</code>实现（<code>x86_64/sysdep.h</code>）的定义如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define DO_CALL(syscall_name, args)					      \
+</span><span style="color:#75715e">  lea SYS_ify (syscall_name), %rax;					      \
+</span><span style="color:#75715e">  syscall
+</span></code></pre></div><p>这里 64 位系统还是将系统调用名称转换为系统调用号，放在寄存器 <code>rax</code> 中。但是不是通过中断，而是通过 <code>syscall</code> 指令进行真正的内核调用。<code>syscall</code> 指令使用了一种特殊的寄存器，<strong>特殊模块寄存器（Model Specific Registers, MSR）</strong>。</p>
 <h4 id="内核对调用函数的处理">内核对调用函数的处理</h4>
-
 <p>(以下内核代码都是基于 <code>4.10.1</code> 版本)</p>
-
 <h5 id="触发中断与堆栈切换">触发中断与堆栈切换</h5>
-
 <p>在内核启动时调用 <code>start_kernel</code> 作为内核启动的函数入口， 其中有一个函数 <code>trap_init</code> 用于初始化中断的，里面有一句对于 <code>int $0x80</code> 的中断入口:</p>
-
-<pre><code class="language-cpp">set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
-</code></pre>
-
-<p>以下是 <code>entry_INT80_32</code> 的实现：</p>
-
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
+</code></pre></div><p>以下是 <code>entry_INT80_32</code> 的实现：</p>
 <pre><code>ENTRY(entry_INT80_32)
         ASM_CLAC
         pushl   %eax                    /* pt_regs-&gt;orig_ax */
@@ -281,126 +221,88 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 ......
 .Lirq_return:
 	INTERRUPT_RETURN
-</code></pre>
-
-<p>通过 <code>push</code> 和 <code>SAVE_ALL</code> 将当前用户态的寄存器，保存在 <code>pt_regs</code> 结构里，然后调用<code>do_syscall_32_irqs_on</code>。</p>
-
-<pre><code class="language-cpp">static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+</code></pre><p>通过 <code>push</code> 和 <code>SAVE_ALL</code> 将当前用户态的寄存器，保存在 <code>pt_regs</code> 结构里，然后调用<code>do_syscall_32_irqs_on</code>。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">static</span> __always_inline <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">do_syscall_32_irqs_on</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">pt_regs</span> <span style="color:#f92672">*</span>regs)
 {
-	struct thread_info *ti = current_thread_info();
-	unsigned int nr = (unsigned int)regs-&gt;orig_ax;
+	<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">thread_info</span> <span style="color:#f92672">*</span>ti <span style="color:#f92672">=</span> current_thread_info();
+	<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> nr <span style="color:#f92672">=</span> (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>orig_ax;
 ......
-	if (likely(nr &lt; IA32_NR_syscalls)) {
-		regs-&gt;ax = ia32_sys_call_table[nr](
-			(unsigned int)regs-&gt;bx, (unsigned int)regs-&gt;cx,
-			(unsigned int)regs-&gt;dx, (unsigned int)regs-&gt;si,
-			(unsigned int)regs-&gt;di, (unsigned int)regs-&gt;bp);
+	<span style="color:#66d9ef">if</span> (likely(nr <span style="color:#f92672">&lt;</span> IA32_NR_syscalls)) {
+		regs<span style="color:#f92672">-&gt;</span>ax <span style="color:#f92672">=</span> ia32_sys_call_table[nr](
+			(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>bx, (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>cx,
+			(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>dx, (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>si,
+			(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>di, (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>bp);
 	}
 	syscall_return_slowpath(regs);
 }
-</code></pre>
-
-<p>这里将系统调用号从 eax 中取出，然后根据系统调用号，在系统调用表里找到对应函数进行带哦用，并将寄存器中保存的参数取出来作为函数参数传递。</p>
-
+</code></pre></div><p>这里将系统调用号从 eax 中取出，然后根据系统调用号，在系统调用表里找到对应函数进行带哦用，并将寄存器中保存的参数取出来作为函数参数传递。</p>
 <p>最终 <code>INTERRUPT_RETURN</code> 宏展开后为 <code>iret</code>，将原来用户态保存的线程恢复回来。包含代码段、指令指针寄存器等。</p>
-
 <h5 id="内核对系统函数的处理">内核对系统函数的处理</h5>
-
 <p>内核中会维护一个系统调用号与对应函数的系统调用表。这里以 32 位的系统调用表（<code>arch/x86/entry/syscalls/syscall_32.tbl</code>）为例：</p>
-
 <pre><code># &lt;number&gt; &lt;abi&gt; &lt;name&gt; &lt;entry point&gt; &lt;compat entry point&gt;
 5	i386	open			sys_open  compat_sys_open
-</code></pre>
-
-<p>其中第一列数字就是系统调用号，第四列是系统调用在内核的实现函数，都是以 <code>sys_</code> 开头。</p>
-
+</code></pre><p>其中第一列数字就是系统调用号，第四列是系统调用在内核的实现函数，都是以 <code>sys_</code> 开头。</p>
 <p>系统调用在内核中的实现函数声明一般在 <code>include/linux/syscalls.h</code> 文件中, 可以看到 <code>sys_open</code> 的声明：</p>
-
-<pre><code class="language-cpp">asmlinkage long sys_open(const char __user *filename,
-				int flags, umode_t mode);
-</code></pre>
-
-<p>真正实现一般在对应的 <code>.c</code> 文件中，例如 <code>sys_ope</code>n 的实现在 <code>fs/open.c</code> 文件中。</p>
-
-<pre><code class="language-cpp">SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">asmlinkage <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">sys_open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span>filename,
+				<span style="color:#66d9ef">int</span> flags, umode_t mode);
+</code></pre></div><p>真正实现一般在对应的 <code>.c</code> 文件中，例如 <code>sys_ope</code>n 的实现在 <code>fs/open.c</code> 文件中。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">SYSCALL_DEFINE3(open, <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span>, filename, <span style="color:#66d9ef">int</span>, flags, umode_t, mode)
 {
-        if (force_o_largefile())
-                flags |= O_LARGEFILE;
-        return do_sys_open(AT_FDCWD, filename, flags, mode);
+        <span style="color:#66d9ef">if</span> (force_o_largefile())
+                flags <span style="color:#f92672">|=</span> O_LARGEFILE;
+        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">do_sys_open</span>(AT_FDCWD, filename, flags, mode);
 }
-</code></pre>
-
-<p>其中 <code>SYSCALL_DEFINE3</code> 是一个表示带有三个参数的宏，将其展开后，实现如下：</p>
-
-<pre><code class="language-cpp">asmlinkage long sys_open(const char __user * filename, int flags, int mode)
+</code></pre></div><p>其中 <code>SYSCALL_DEFINE3</code> 是一个表示带有三个参数的宏，将其展开后，实现如下：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">asmlinkage <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">sys_open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span> filename, <span style="color:#66d9ef">int</span> flags, <span style="color:#66d9ef">int</span> mode)
 {
- long ret;
+ <span style="color:#66d9ef">long</span> ret;
 
 
- if (force_o_largefile())
-  flags |= O_LARGEFILE;
+ <span style="color:#66d9ef">if</span> (force_o_largefile())
+  flags <span style="color:#f92672">|=</span> O_LARGEFILE;
 
 
- ret = do_sys_open(AT_FDCWD, filename, flags, mode);
- asmlinkage_protect(3, ret, filename, flags, mode);
- return ret;
+ ret <span style="color:#f92672">=</span> do_sys_open(AT_FDCWD, filename, flags, mode);
+ asmlinkage_protect(<span style="color:#ae81ff">3</span>, ret, filename, flags, mode);
+ <span style="color:#66d9ef">return</span> ret;
  }
-</code></pre>
-
-<p>结合以上分析，这里总结下 32 位的系统调用从用户态到内核态是如何执行的。</p>
-
-<p><img src="/pic/2019/2019-05-26-linux-syscall-03.png" alt="pic" />
+</code></pre></div><p>结合以上分析，这里总结下 32 位的系统调用从用户态到内核态是如何执行的。</p>
+<p><img src="/pic/2019/2019-05-26-linux-syscall-03.png" alt="pic">
 <em>32 位的系统调用 图片来源：趣谈Linux操作系统</em></p>
-
 <h3 id="系统调用实例">系统调用实例</h3>
-
 <p>通过以上的分析，相信大家已经了解了系统调用的整个流程。下面通过三种不同的方式，实现对终端的输出。</p>
-
 <ul>
 <li>通过 <code>write()</code> 系统调用实现</li>
 <li>通过 <code>syscall()</code> 系统调用实现</li>
 <li>通过汇编，调用 <code>syscall</code> 指令</li>
 </ul>
-
 <h4 id="write-系统调用">write() 系统调用</h4>
-
 <p>这里我们没有使用 <code>printf</code> 这个标准库，而是使用 Linux 的系统调用 <code>write</code> 。参数 <code>1</code> 表示标准输出文件描述符。</p>
-
-<pre><code class="language-cpp">#include &lt;fcntl.h&gt;
-#include &lt;unistd.h&gt;
-int main () 
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;fcntl.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span> () 
 {
-    write (1, &quot;Hello World&quot;, 11);
-return 0; 
+    write (<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;Hello World&#34;</span>, <span style="color:#ae81ff">11</span>);
+<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>; 
 }
-</code></pre>
-
-<h4 id="syscall-系统调用">syscall() 系统调用</h4>
-
+</code></pre></div><h4 id="syscall-系统调用">syscall() 系统调用</h4>
 <p>现在，我们使用 glibc 提供的 <code>syscall</code> 接口，实现同样的逻辑。</p>
-
-<pre><code class="language-cpp">#include &lt;unistd.h&gt;
-#include &lt;sys/syscall.h&gt;
-int main () 
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sys/syscall.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span> () 
 {
-    syscall (1, 1, &quot;Hello World&quot;, 11);
-return 0; 
+    syscall (<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;Hello World&#34;</span>, <span style="color:#ae81ff">11</span>);
+<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>; 
 }
-</code></pre>
-
-<p>这里第一个参数表示系统调用的调用号，我是在 64 位系统上运行的，所以 <code>write</code> 对应的调用号为 <code>1</code> ，如果是 32 位系统，则调用号为 <code>4</code>。</p>
-
+</code></pre></div><p>这里第一个参数表示系统调用的调用号，我是在 64 位系统上运行的，所以 <code>write</code> 对应的调用号为 <code>1</code> ，如果是 32 位系统，则调用号为 <code>4</code>。</p>
 <p>也就是说 <code>syscall</code> 也是一个系统调用，而且接口更加原始，其他的系统调用都可以看作是通过 <code>syscall</code> 实现的一种封装。</p>
-
 <h4 id="syscall-指令">syscall 指令</h4>
-
 <p>下面是通过汇编代码，实现同样的逻辑。这里的方法是将值放到对应的寄存器中，然后调用 <code>syscall</code> 指令。</p>
-
-<pre><code class="language-s">section .text global _start
-_start: ; ELF entry point ; 1 is the number for syscall write ().
-mov rax, 1
-; 1 is the STDOUT file descriptor.
-mov rdi, 1
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">section .text global _start
+_start<span style="color:#f92672">:</span> ; ELF entry point ; <span style="color:#ae81ff">1</span> is the number for syscall <span style="color:#a6e22e">write </span>().
+mov rax, <span style="color:#ae81ff">1</span>
+; <span style="color:#ae81ff">1</span> is the STDOUT file descriptor.
+mov rdi, <span style="color:#ae81ff">1</span>
     ; buffer to be printed.
     mov rsi, message
     ; length of buffer
@@ -408,26 +310,21 @@ mov rdi, 1
     ; call the syscall instruction
 syscall
 ; sys_exit
-mov rax, 60
-; return value is 0
-mov rdi, 0
+mov rax, <span style="color:#ae81ff">60</span>
+; return value is <span style="color:#ae81ff">0</span>
+mov rdi, <span style="color:#ae81ff">0</span>
 ; call the assembly instruction
 syscall
 section .data
-messageLen: dq message.end-message message: db 'Hello World', 10
-.end:
-</code></pre>
-
-<p>对应汇编代码的 makefile 如下：</p>
-
+messageLen<span style="color:#f92672">:</span> dq message.end<span style="color:#f92672">-</span>message message<span style="color:#f92672">:</span> db <span style="color:#e6db74">&#39;Hello World&#39;</span>, <span style="color:#ae81ff">10</span>
+.end<span style="color:#f92672">:</span>
+</code></pre></div><p>对应汇编代码的 makefile 如下：</p>
 <pre><code>all:
     nasm -felf64 write.asm
     ld write.o -o elf.write
 clean:
     rm -rf *.o
-</code></pre>
-
-<p>可以看到，这里将系统调用号 <code>1</code> 放入了 <code>eax</code>，后面的几个参数分别放入了寄存器 <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, 顺序是与之前的 64 位系统通用寄存器传递参数的顺序是一致的。</p>
+</code></pre><p>可以看到，这里将系统调用号 <code>1</code> 放入了 <code>eax</code>，后面的几个参数分别放入了寄存器 <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, 顺序是与之前的 64 位系统通用寄存器传递参数的顺序是一致的。</p>
             </div>
             
             <div style="border: 1px dashed #e0e0e0; margin-bottom: 15px; padding: 10px 10px 10px 10px; background-color: #fffeee; background-repeat: no-repeat; background-attachment: scroll; background-position: 1% 50%; -moz-background-size: auto auto; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">
@@ -481,45 +378,8 @@ clean:
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#系统调用介绍">系统调用介绍</a>
-<ul>
-<li><a href="#系统调用与运行库">系统调用与运行库</a></li>
-<li><a href="#中断">中断</a></li>
-</ul></li>
-<li><a href="#系统调用的实现原理">系统调用的实现原理</a>
-<ul>
-<li><a href="#系统调用参数传递">系统调用参数传递</a></li>
-<li><a href="#系统调用在-glibc-中的实现">系统调用在 glibc 中的实现</a></li>
-<li><a href="#内核对调用函数的处理">内核对调用函数的处理</a>
-<ul>
-<li><a href="#触发中断与堆栈切换">触发中断与堆栈切换</a></li>
-<li><a href="#内核对系统函数的处理">内核对系统函数的处理</a></li>
-</ul></li>
-</ul></li>
-<li><a href="#系统调用实例">系统调用实例</a>
-<ul>
-<li><a href="#write-系统调用">write() 系统调用</a></li>
-<li><a href="#syscall-系统调用">syscall() 系统调用</a></li>
-<li><a href="#syscall-指令">syscall 指令</a></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

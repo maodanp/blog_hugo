@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>分布式存储 on Danping&#39;s blog</title>
@@ -7,11 +7,7 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Sat, 13 Aug 2016 00:00:00 +0000</lastBuildDate>
-    
-	<atom:link href="https://maodanp.github.io/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E5%AD%98%E5%82%A8/index.xml" rel="self" type="application/rss+xml" />
-    
-    
+    <lastBuildDate>Sat, 13 Aug 2016 00:00:00 +0000</lastBuildDate><atom:link href="https://maodanp.github.io/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E5%AD%98%E5%82%A8/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>分布式存储之Raft协议应用详解</title>
       <link>https://maodanp.github.io/2016/08/13/bigdata-raft-state/</link>

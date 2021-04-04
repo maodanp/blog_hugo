@@ -72,79 +72,54 @@
 
             <div class="post-content">
                 <p>I/O多路复用是常用的服务器I/O模型，包括select/poll/epoll等方式。本篇针对这几种方式的优缺点分别做讲解。</p>
-
 <p>在<a href="/2016/05/01/io-model">上一篇文章</a>中介绍了I/O的几种网络模型，并且提到了多路I/O复用方案，它提供了对大量文件描述符就绪检查的高性能方案，允许进程通过一 种方法来同时监听所有fd，并且快速获得所有就绪的fd，然后只针对这些fd进行数据访问。</p>
-
 <p>I/O多路复用技术适用如下场合：</p>
-
 <ol>
 <li>当客户端处理多个描述符，必须适用适用I/O复用</li>
 <li>TCP服务器既要处理监听套接字，又要处理已连接套接字，一般也要用到I/O复用</li>
 <li>服务器要处理多个服务或协议，一般也要用到I/O复用</li>
 </ol>
-
 <p>目前支持I/O多路复用的系统调用者有select, pselect, poll, epoll。 这些系统调用本质上是同步I/O，它们都需要在读写事件就绪后用户自己负责进行读写。</p>
-
 <h3 id="select">select</h3>
-
 <p>它通过一个select()系统调用来监视包含多个fd的数据，当select()返回后，该数组中就绪的fd便会被北河修改标志位，使得进程可以获得这些fd从而进行后续的读写操作。唯一的优点就是良好的跨平台性，能够支持几乎所有的平台。</p>
-
-<p>但是缺点也非常的明显：
-* 单个进程能够监听的fd数量存在最大限制（Linux上一般为1024, 可以通过宏定义甚至编译内核方式提升这一限制，但会造成效率降低）
-* 调用select()会对所有socket进行一次线性扫描，浪费了一定的开销
-* 需要维护一个用来存放大量fd的数据结构，随着fd数量的增大，用户空间和内核空间的相互拷贝的开销也在增长</p>
-
+<p>但是缺点也非常的明显：</p>
+<ul>
+<li>单个进程能够监听的fd数量存在最大限制（Linux上一般为1024, 可以通过宏定义甚至编译内核方式提升这一限制，但会造成效率降低）</li>
+<li>调用select()会对所有socket进行一次线性扫描，浪费了一定的开销</li>
+<li>需要维护一个用来存放大量fd的数据结构，随着fd数量的增大，用户空间和内核空间的相互拷贝的开销也在增长</li>
+</ul>
 <h3 id="poll">poll</h3>
-
 <p>poll和select在本质上差别不大，但是poll是基于链表来存储的，没有最大fd的数量限制。</p>
-
 <blockquote>
 <p>poll本质上和select没有区别，它将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态，如果设备就绪则在设备等待队列中加入一项并继续遍历，如果遍历完所有fd后没有发现就绪设备，则挂起当前进程，直到设备就绪或者主动超时，被唤醒后它又要再次遍历fd。</p>
 </blockquote>
-
 <p>它和select类似，存在缺点：大量fd数组被整体复制于用户态和内核的地址空间之间，不论socket是否处于活跃还是非活跃，大多是没有意义的socket复制。另外select()和epoll()都是“水平触发（Level Triggered）”的方式，如果就绪的fd告诉用户进程，但没有被处理，则下次还会继续报告该fd。</p>
-
 <h3 id="epoll">epoll</h3>
-
 <p>epoll直到Linux2.6才由内核实现的方法，它相对于select和epoll来说，更加灵活，没有描述符的限制。epoll将用户关系的fd事件(EPOLLIN, EPOLLOUT)存放在内核的一个事件表中，这样在用户空间和内核空间的拷贝只需要一次。</p>
-
 <blockquote>
 <p>epoll支持水平和边缘触发，它会通知进程哪些fd刚刚变为就绪状态，但仅仅通知一次。</p>
 </blockquote>
-
 <p>理论上边缘触发的性能要更高些，但是用户层的代码需要一次性循环读完，不然会存在漏读问题。</p>
-
 <blockquote>
 <p>epoll使用“事件”的就绪通知方式，通过epoll_ctl()注册fd，一旦该fd就绪，内核就会采用类似callback的回调机制来激活该fd，epoll_wait()便可以收到通知；</p>
 </blockquote>
-
 <p>这里epoll_wait()返回的是代表就绪fd数量的值，我们只需要去epoll指定的一个数组中一次取得相应数量的fd即可。</p>
-
 <p>epoll相对于select、epoll的优点较为明显：</p>
-
 <ol>
 <li>没有最大并发连接数的限制</li>
 <li>它只管“活跃”的连接，而跟连接总数无关（注意：如果没有大量空闲连接或死连接，epoll效率并不会比select/poll高很多，但是实际网络环境中，效率远高于select和poll）</li>
 <li>内存拷贝，利用mmap()文件映射内存加速与内核空间的消息传递，较少复制拷贝</li>
 </ol>
-
 <p>epoll对fd的操作有两种模式：LT(level trigger)和ET(edge trigger)，默认使用的是LT模式。</p>
-
 <p><code>LT模式</code>： 当fd就绪时，应用程序如果不立即处理时间，下次在epoll_wait返回时，会再次将该fd通知给应用程序，select也属于该类，长期关注socket读写事件，会出现CPU的忙循环（busy loop）问题。</p>
-
 <p><code>ET模式</code>： 内核在描述符就绪的时候只会通知进程一次，如果不处理，下次调用epoll_wait时，将不会通知该事件。也就是说，如果采用该模式，需要一直read/write直到errno变为EAGAIN(或EWOULDBLOCK)。epoll工作在ET时必须使用非阻塞套接字，以避免由于一个fd的阻塞读写影响对其他fd操作。</p>
-
 <h3 id="总结">总结</h3>
-
 <p>由于存在自身的特点，所以在选择select、poll、epoll时要根据具体使用场合：</p>
-
 <ol>
 <li>总的而言epoll的性能最好，但是在连接数少且连接都十分活跃的情况下， select和poll的性能不一定比epoll差，epoll内部有自己的事件通知机制</li>
 <li>由于select是跨平台的系统调用，如果考虑到应用程序的跨平台性，以及连接数的实际情况，也是一种选择方式。</li>
 </ol>
-
 <h3 id="参考阅读">参考阅读</h3>
-
 <p>《 构建高性能web站点 》 Ch3 服务器并发处理能力</p>
             </div>
             
@@ -206,29 +181,8 @@
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#select">select</a></li>
-<li><a href="#poll">poll</a></li>
-<li><a href="#epoll">epoll</a></li>
-<li><a href="#总结">总结</a></li>
-<li><a href="#参考阅读">参考阅读</a></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

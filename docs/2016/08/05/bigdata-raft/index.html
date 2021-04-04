@@ -72,124 +72,86 @@
 
             <div class="post-content">
                 <p>随着<a href="http://files.catwell.info/misc/mirror/raft/raft.pdf">Raft一致性算法论文</a>的发表，该协议在分布式领域的应用越来越广泛，大有取代Paxos协议之势。</p>
-
 <h3 id="raft概述">Raft概述</h3>
-
 <ul>
 <li>Raft强调的是<strong>易懂（Understandability）</strong>，在做技术决策和选型的时候，易于理解是非常重要的</li>
 <li>Raft算法能够给出实现系统的<strong>确定性</strong>，能够给出每个技术细节的清晰界定与描述</li>
 </ul>
-
-<p>Raft使用了分而治之的思想把算法流程分为三个子问题：<strong>选举（Leader election）</strong>、<strong>日志复制（Log replication）</strong>、<strong>安全性（Safety）</strong>三个子问题。</p>
-
+<p>Raft使用了分而治之的思想把算法流程分为三个子问题：<strong>选举（Leader election）</strong>、<strong>日志复制（Log replication）</strong>、**安全性（Safety）**三个子问题。</p>
 <h3 id="raft流程">Raft流程</h3>
-
 <ul>
 <li>Raft开始时在集群中选举出<strong>Leader</strong>负责日志复制的管理；</li>
 <li><strong>Leader</strong>接受来自客户端的事务请求（日志），并将它们复制给集群的其他节点，然后负责通知集群中其他节点提交日志，<strong>Leader负</strong>责保证其他节点与他的日志同步；</li>
 <li>当<strong>Leader</strong>宕掉后集群其他节点会发起选举选出新的<strong>Leader</strong>；</li>
 </ul>
-
 <p>可以看到<strong>Raft</strong>采用的是<strong>Master-Slave</strong>模式，这在一定程度上简化了一致性维护的问题，清晰的看到各个系统所处的状态。</p>
-
 <h3 id="raft详解">Raft详解</h3>
-
 <h4 id="角色">角色</h4>
-
 <p>Raft把集群中的节点分为三种状态：<strong>Leader</strong>、<strong>Follower</strong>、<strong>Candidate</strong>。Raft运行时提供服务的时候只存在<strong>Leader</strong>与<strong>Follower</strong>两种状态；即<strong>Candidate</strong>是转换的中间状态。</p>
-
 <ul>
 <li><strong>Leader（领导者）</strong>：负责日志的同步管理，处理来自客户端的请求，与Follower保持这heartBeat的联系；</li>
 <li><strong>Follower（追随者）</strong>：刚启动时所有节点为Follower状态，响应Leader的日志同步请求，响应Candidate的请求，把请求到Follower的事务转发给Leader；</li>
 <li><strong>Candidate（候选者）</strong>：负责选举投票，Raft刚启动时由一个节点从Follower转为Candidate发起选举，选举出Leader后从Candidate转为Leader状态；</li>
 </ul>
-
 <p>三者的转换关系及转换条件如下所示：</p>
-
-<p><img src="../../../../pic/2016/2016-08-05-bigdata-raft-1.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-08-05-bigdata-raft-1.png" alt=""></p>
 <h4 id="term">Term</h4>
-
 <p>在Raft中使用了一个可以理解为周期（第几届、任期）的概念，用Term作为一个周期，每个Term都是一个连续递增的编号，每一轮选举都是一个Term周期，在一个Term中只能产生一个Leader；先简单描述下Term的变化流程：Raft开始时所有Follower的Term为1，其中一个Follower逻辑时钟到期后转换为Candidate，Term加1这是Term为2（任期），然后开始选举，这时候有几种情况会使Term发生改变：</p>
-
 <ol>
 <li>如果当前Term为2的任期内没有选举出Leader或出现异常，则Term递增，开始新一任期选举</li>
 <li>当这轮Term为2的周期选举出Leader后，过后Leader宕掉了，然后其他Follower转为Candidate，Term递增，开始新一任期选举</li>
 <li>当Leader或Candidate发现自己的Term比别的Follower小时Leader或Candidate将转为Follower，Term递增</li>
 <li>当Follower的Term比别的Term小时Follower也将更新Term保持与其他Follower一致；</li>
 </ol>
-
 <p>可以说每次Term的递增都将发生新一轮的选举，Raft保证一个Term只有一个Leader，在Raft正常运转中所有的节点的Term都是一致的，如果节点不发生故障一个Term（任期）会一直保持下去，当某节点收到的请求中Term比当前Term小时则拒绝该请求。</p>
-
-<p><img src="../../../../pic/2016/2016-08-05-bigdata-raft-2.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-08-05-bigdata-raft-2.png" alt=""></p>
 <h4 id="选举">选举</h4>
-
 <p>Raft的选举由定时器来触发，每个节点的选举定时器时间都是不一样的，开始时状态都为<strong>Follower</strong>某个节点定时器触发选举后<strong>Term</strong>递增，状态由<strong>Follower</strong>转为<strong>Candidate</strong>，向其他节点发起<strong>RequestVote RPC</strong>请求，这时候有三种可能的情况发生：</p>
-
 <ol>
-<li><p>赢得本次选举</p>
-
-<p>如果接收到大都输其他节点的投票，则赢得选举成为领导者，然后定时向其他服务器发送RPC心跳维护其<strong>Leader</strong>地位。</p></li>
-
-<li><p>另一个服务器S宣称并确认自己是新的领导者</p>
-
-<p>如果该<strong>Candidate</strong>收到服务器S的RPC，且Term编号大于<strong>Candidate</strong>自身编号，则自己转为<strong>Follower</strong>，否则拒绝承认S为新领导者并继续维持自身的<strong>Candidate</strong>状态。</p></li>
-
-<li><p>经过一定时间仍然没有新领导者产生</p>
-
-<p>由于同一时间有多个<strong>Follower</strong>转为<strong>Candidate</strong>状态，导致选票分流，所以没能得到多数选票。此时<strong>Candidate</strong>增加自身<strong>Term</strong>编号进入新一轮选举。</p></li>
+<li>
+<p>赢得本次选举</p>
+<p>如果接收到大都输其他节点的投票，则赢得选举成为领导者，然后定时向其他服务器发送RPC心跳维护其<strong>Leader</strong>地位。</p>
+</li>
+<li>
+<p>另一个服务器S宣称并确认自己是新的领导者</p>
+<p>如果该<strong>Candidate</strong>收到服务器S的RPC，且Term编号大于<strong>Candidate</strong>自身编号，则自己转为<strong>Follower</strong>，否则拒绝承认S为新领导者并继续维持自身的<strong>Candidate</strong>状态。</p>
+</li>
+<li>
+<p>经过一定时间仍然没有新领导者产生</p>
+<p>由于同一时间有多个<strong>Follower</strong>转为<strong>Candidate</strong>状态，导致选票分流，所以没能得到多数选票。此时<strong>Candidate</strong>增加自身<strong>Term</strong>编号进入新一轮选举。</p>
+</li>
 </ol>
-
 <h4 id="日志复制">日志复制</h4>
-
-<p><strong>日志复制（Log Replication）</strong>主要作用是用于保证节点的一致性，这阶段所做的操作也是为了保证一致性与高可用性；当Leader选举出来后便开始负责客户端的请求，所有事务（更新操作）请求都必须先经过Leader处理。</p>
-
+<p>**日志复制（Log Replication）**主要作用是用于保证节点的一致性，这阶段所做的操作也是为了保证一致性与高可用性；当Leader选举出来后便开始负责客户端的请求，所有事务（更新操作）请求都必须先经过Leader处理。</p>
 <p>要保证节点的一致性就要保证每个节点都按顺序执行相同的操作序列，日志复制（Log Replication）就是为了保证执行相同的操作序列所做的工作；</p>
-
 <ul>
 <li>在Raft中当接收到客户端的日志（事务请求）后先把该日志<strong>追加</strong>到本地的Log中；</li>
 <li>然后通过<strong>heartbeat</strong>把该<strong>Entry</strong>同步给其他<strong>Follower</strong>，<strong>Follower</strong>接收到日志后记录日志然后向<strong>Leader</strong>发送ACK；</li>
 <li>当<strong>Leader</strong>收到大多数<strong>Follower</strong>的<strong>ACK</strong>信息后将该日志设置为<strong>已提交</strong>并追加到本地磁盘中，通知客户端；</li>
 <li>并在下个<strong>heartbeat</strong>中<strong>Leader</strong>将通知所有的<strong>Follower</strong>将该日志存储在自己的本地磁盘中;</li>
 </ul>
-
-<p><img src="../../../../pic/2016/2016-08-05-bigdata-raft-3.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-08-05-bigdata-raft-3.png" alt=""></p>
 <p>上图展示了每个<strong>Logs</strong>的组织结构。这些<strong>log entry</strong>都是从<strong>Leader</strong>中获取，其中每个<strong>log entry</strong>存储了一个<strong>状态机命令</strong>和任期号，且每个<strong>log entry</strong>包含整型的索引来确定在log中的位置。</p>
-
 <h4 id="安全性">安全性</h4>
-
 <p><strong>安全性</strong>是用于保证每个节点都执行相同序列的安全机制，如当某个<strong>Follower</strong>在当前<strong>Leader commit Log</strong>时变得不可用了，稍后可能该<strong>Follower</strong>又会被选举为<strong>Leader</strong>，这时新<strong>Leader</strong>可能会用新的Log覆盖先前已<strong>committed</strong>的Log，这就是导致不同的节点执行不同序列。<strong>Safety</strong>就是用于保证选举出来的<strong>Leader</strong>一定包含先前<strong>commited Log</strong>的机制。</p>
-
 <ul>
 <li><strong>必须要比大部分其它候选者的log新，才有机会成为leader</strong>, 这个是<strong>只有拥有所有commit日志，才有可能被选为leader</strong>的充分非必要条件。在实现的时候，保证选举<strong>Leader</strong>满足前者条件，即：当请求投票的该Candidate的Term较大或Term相同Index更大则投票，否则拒绝该请求。 （限制了哪些服务器可以被选举为Leader）</li>
 </ul>
-
 <blockquote>
 <p>Raft uses the voting process to prevent a candidate from winning an election unless its log contains all committed entries.</p>
 </blockquote>
-
 <ul>
 <li>对于新领导者而言，只有它自己已经提交过当前<strong>Term</strong>的操作命令才被认为是真正的提交（限制了哪些操作命令的提交可被认为真正的提交）</li>
 </ul>
-
 <blockquote>
 <p>Only log entries from the leader’s current term are committed by counting replicas.</p>
 </blockquote>
-
 <h3 id="参考阅读">参考阅读</h3>
-
 <p><a href="http://files.catwell.info/misc/mirror/raft/raft.pdf">In Search of an Understandable Consensus Algorithm</a></p>
-
 <p><a href="http://blog.csdn.net/cszhouwei/article/details/38374603">Raft一致性算法</a></p>
-
 <p><a href="http://blog.csdn.net/longxibendi/article/details/43340469">etcd：从应用场景到实现原理的全方位解读</a></p>
-
 <p><a href="http://www.solinx.co/archives/415?utm_source=tuicool&amp;utm_medium=referral">一致性算法Raft详解</a></p>
-
 <p><a href="http://www.cnblogs.com/mindwind/p/5231986.html">Raft 为什么是更易理解的分布式一致性算法</a></p>
-
 <p><a href="http://blog.csdn.net/whycold/article/details/39157645">Raft 一致性协议</a></p>
             </div>
             
@@ -244,35 +206,8 @@
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#raft概述">Raft概述</a></li>
-<li><a href="#raft流程">Raft流程</a></li>
-<li><a href="#raft详解">Raft详解</a>
-<ul>
-<li><a href="#角色">角色</a></li>
-<li><a href="#term">Term</a></li>
-<li><a href="#选举">选举</a></li>
-<li><a href="#日志复制">日志复制</a></li>
-<li><a href="#安全性">安全性</a></li>
-</ul></li>
-<li><a href="#参考阅读">参考阅读</a></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

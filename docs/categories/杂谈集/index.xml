@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>杂谈集 on Danping&#39;s blog</title>
@@ -7,11 +7,7 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Mon, 20 May 2019 00:00:00 +0000</lastBuildDate>
-    
-	<atom:link href="https://maodanp.github.io/categories/%E6%9D%82%E8%B0%88%E9%9B%86/index.xml" rel="self" type="application/rss+xml" />
-    
-    
+    <lastBuildDate>Mon, 20 May 2019 00:00:00 +0000</lastBuildDate><atom:link href="https://maodanp.github.io/categories/%E6%9D%82%E8%B0%88%E9%9B%86/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>美国之行</title>
       <link>https://maodanp.github.io/2019/05/20/us-travel/</link>
@@ -28,7 +24,6 @@
       
       <guid>https://maodanp.github.io/2019/05/15/baby-born/</guid>
       <description>&lt;p&gt;宝宝出生也将近一周岁了，我也在适应着作为父亲的这个角色。老婆也早已经做完月子，开始了正常的上班生活，还跟我调侃说早就忘记了生娃时所受的痛苦了。&lt;/p&gt;
-
 &lt;p&gt;这么重要的人生阶段我想很有必要记录一段，以后也能时常回忆。&lt;/p&gt;</description>
     </item>
     

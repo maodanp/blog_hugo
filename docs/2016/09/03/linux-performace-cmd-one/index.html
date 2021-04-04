@@ -72,49 +72,32 @@
 
             <div class="post-content">
                 <p>作为后端研发人员，了解Linux服务器的性能状态是非常必要的，Linux设计的性能检测命令也很多，如何在最短时间内定位到影响服务器性能的瓶颈，这也是每个研发人员的必备的技能之一。</p>
-
 <h3 id="uptime">uptime</h3>
-
 <p>以下是<code>uptime</code>的输出信息：</p>
-
 <pre><code>04:03:58 up 10 days, 13:19, 1 user, load average: 0.54, 0.40, 0.20
 </code></pre>
-
 <p>其中，0.54, 0.40, 0.20，最近1分钟、5分钟、15分钟系统的负载。</p>
-
 <p>通过这三个数据，可以了解服务器负载是在趋于紧张还是趋于缓解。如果1分钟平均负载很高，而15分钟平均负载很低，说明服务器正在命令高负载情况，需要进一步排查CPU资源都消耗在了哪里；反之，如果15分钟平均负载很高，1分钟平均负载较低，则有可能是CPU资源紧张时刻已经过去。</p>
-
 <h4 id="系统负载">系统负载</h4>
-
 <p>系统平均负载被定义为在特定时间间隔内运行队列中的平均进程数。如果一个进程满足以下条件就会认为位于运行队列中：</p>
-
 <ul>
 <li>它没有在等待I/O操作的结果</li>
 <li>它没有主动进入等待状态</li>
 <li>没有被停止</li>
 </ul>
-
 <h4 id="负载高-or-低">负载高 or 低</h4>
-
 <p>一般来说，每个CPU内核当前活动进程数不大于3，则系统运行表现良好。也就是如果你的主机是四核cpu的话，那么只要uptime最后输出的一串字符数值小于12即表示系统负载不是很严重。</p>
-
 <h3 id="dmesg">dmesg</h3>
-
 <p>dmesg命令显示linux内核的环形缓冲区信息，我们可以从中获得诸如系统架构、cpu、挂载的硬件，内存等多个层次的系统信息。这也有助于我们排查性能问题。</p>
-
 <p>一般我们会将<code>dmesg</code>结合命令<code>more</code>、<code>less</code>、<code>head</code>、<code>tail</code>、<code>grep</code>等使用，打印出我们需要的信息，或者过滤掉我们不需要的信息。</p>
-
 <ul>
 <li><code>dmesg | head -20</code> 显示前20行的内核信息</li>
 <li><code>dmesg | tail -20</code> 显示后20行的内核信息</li>
 <li><code>dmesg | grep sda</code> 搜索包含sda关键字的信息</li>
 <li><code>tail -f /var/log/dmesg</code> 或者 <code>watch &quot;dmesg | tail&quot;</code> 实时监控dmesg的日志输出</li>
 </ul>
-
 <h3 id="vmstat">vmstat</h3>
-
 <p>vmstat命令每行会输出一些系统核心指标，这些指标可以让我们更详细的了解系统状态。可以展现给定时间间隔的服务器的状态值,包括服务器的CPU使用率，内存使用，虚拟内存交换情况,IO读写情况。</p>
-
 <pre><code>vmstat 1
 
 procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
@@ -124,10 +107,7 @@ procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
  1  0 2593888 45302544 18504760 37989668    0    0     0   184 8455 16237  2  1 97  0  0
  3  0 2593888 45303872 18504760 37989692    0    0     0   200 13497 27806  5  1 94  0  0
  1  0 2593888 45302944 18504760 37989744    0    0     0   300 26437 53148 12  4 85  0  0
-</code></pre>
-
-<p>其中，和性能调优相关的信息包括：</p>
-
+</code></pre><p>其中，和性能调优相关的信息包括：</p>
 <ul>
 <li><code>r</code> 表示运行和等待CPU时间片的进程数。如果这个数值长期大于机器CPU核数，那么机器的CPU资源已经饱和。</li>
 <li><code>free</code> 系统可用内存数（KB为单位），如果剩余内存不足，也会导致系统性能问题。（具体可以看free命令）。</li>
@@ -135,11 +115,8 @@ procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
 <li><code>us, sy, id</code> 这些都代表了CPU时间的消耗，它们分别表示用户时间（user）、系统（内核）时间（sys）、空闲时间（idle）。一般来说，id+us+sy=100，如果us长期大于50%，那就要考虑程序优化了；如果us+sy超过80%，就说明CPU的资源存在不足。</li>
 <li><code>wa</code> 表示IO等待所占的CPU时间百分比。wa值越高，说明IO等待越严重。如果wa值超过20%，说明IO等待严重。</li>
 </ul>
-
 <h3 id="mpstat">mpstat</h3>
-
 <p>mpstat（Multiprocessor Statistics）最大的特点是可以查看多核心cpu中每个计算核心的统计数据；而上述的vmstat只能查看系统整体cpu情况。以下命令是每2秒更新一次，查看多核CPU核心的当前运行状况信息：</p>
-
 <pre><code>mpstat  -P ALL 2
 
 19:43:58     CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle
@@ -150,14 +127,9 @@ procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
 19:43:59      13    0.99    0.00    0.00    0.00    0.00    0.00    0.00    0.00   99.01
 19:43:59      14    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
 19:43:59      15    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
-</code></pre>
-
-<p>如果有一个CPU占用率特别高，那么我们可以推断有可能是一个单线程应用程序引起的。</p>
-
+</code></pre><p>如果有一个CPU占用率特别高，那么我们可以推断有可能是一个单线程应用程序引起的。</p>
 <h3 id="pidstat">pidstat</h3>
-
 <p>pidstat主要用于监控全部或指定进程占用系统资源的情况，如CPU，内存、设备IO、任务切换、线程等。</p>
-
 <pre><code>pidstat 1
 Linux 2.6.32.12-0.7-default (linux)             06/18/12        _x86_64_
 
@@ -165,25 +137,17 @@ Linux 2.6.32.12-0.7-default (linux)             06/18/12        _x86_64_
 ……
 11:37:19        11452    0.00    0.00    0.00    0.00     2  bash
 11:37:19        11509    0.00    0.00    0.00    0.00     3  dd
-</code></pre>
-
-<p>执行<code>pidstat 1</code>，将以采样间隔1s，输出系统启动后*所有活动进程*的cpu统计信息，等同于<code>pidstat -u 1</code></p>
-
+</code></pre><p>执行<code>pidstat 1</code>，将以采样间隔1s，输出系统启动后<em>所有活动进程</em>的cpu统计信息，等同于<code>pidstat -u 1</code></p>
 <p>常用命令如下：</p>
-
 <ul>
 <li><code>pidstat -u 1</code> 采样周期1s, 输出所有活动进程的CPU统计信息</li>
 <li><code>pidstat -u -p 2938 1</code> 采样周期1s, 输出进程号为2938的CPU统计信息(通过-p指定进程，下述的内存、磁盘IO统计类似)</li>
 <li><code>pidstat -r 1</code> 采样周期1s, 输出所有活动进程的内存统计信息</li>
 <li><code>pidstat -d 1</code> 采样周期1s, 输出所有活动进程的磁盘IO统计信息</li>
 </ul>
-
 <h3 id="参考阅读">参考阅读</h3>
-
 <p><a href="http://blog.chinaunix.net/uid-24020646-id-1992032.html">linux系统性能调优第一步——性能分析(vmstat)</a></p>
-
 <p><a href="http://www.cnblogs.com/ggjucheng/archive/2012/01/05/2312625.html">Linux vmstat命令实战详解</a></p>
-
 <p><a href="http://www.cnblogs.com/ggjucheng/archive/2013/01/13/2858874.html">Linux 运行进程实时监控pidstat命令详解</a></p>
             </div>
             
@@ -229,7 +193,7 @@ Linux 2.6.32.12-0.7-default (linux)             06/18/12        _x86_64_
                     <ul class="pager">
 
                         
-                        <li class="previous"><a href="/2016/09/04/go/"><span aria-hidden="true">&larr;</span> Prev</a></li>
+                        <li class="previous"><a href="/2016/09/04/linux-performace-cmd-two/"><span aria-hidden="true">&larr;</span> Prev</a></li>
                         
 
                         <li><a href="/post/">All Posts</a></li>
@@ -245,34 +209,8 @@ Linux 2.6.32.12-0.7-default (linux)             06/18/12        _x86_64_
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#uptime">uptime</a>
-<ul>
-<li><a href="#系统负载">系统负载</a></li>
-<li><a href="#负载高-or-低">负载高 or 低</a></li>
-</ul></li>
-<li><a href="#dmesg">dmesg</a></li>
-<li><a href="#vmstat">vmstat</a></li>
-<li><a href="#mpstat">mpstat</a></li>
-<li><a href="#pidstat">pidstat</a></li>
-<li><a href="#参考阅读">参考阅读</a></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

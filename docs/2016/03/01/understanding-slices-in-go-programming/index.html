@@ -72,21 +72,13 @@
 
             <div class="post-content">
                 <p>Golang的初学者有时会被slice所困扰，不理解其内部原理，使用起来总是担心是否有复制的开销。 本文翻译自<a href="https://www.goinggo.net/2013/08/understanding-slices-in-go-programming.html">Understanding Slices in Go Programming</a>，作者对其内部原理作了深入分析。相信读完将会有不一样的感受。</p>
-
 <p>因为我常常被Go语言中Slices(切片)的概念和使用所困扰，它像数组，但又不仅仅是数组。我阅读了很多有关Slices的文章，现在我认为是时候谈谈我对Slices的理解了。</p>
-
 <p>这里有一篇Andrew Gerrand所写的关于切片的<a href="http://blog.golang.org/go-slices-usage-and-internals">文章</a>。因为这里没必要重复Andrew所讲过的内容，所以阅读下面的文章之前，请先阅读下他的文章。</p>
-
 <p>下面让我们直接看看切片的内部结构吧：</p>
-
-<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-1.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-1.png" alt=""></p>
 <p>上面的图片展示了一个slice的内部结构。<strong>当你创建一个切片时，那么该切片的数据以及所隐含的数组也同样被创建了</strong>。你创建的切片变量的值将会是这个数据结构，且当你将切片传递给一个函数时，将会在函数栈中创建这个数据结构的拷贝。</p>
-
 <p>我们有两种方式来创建一个切片：</p>
-
 <p>这里我们通过<code>make</code>关键字创建了一个切片，并且将切片中存储的数据类型、切片初始化的长度、隐含数组的容量都当做参数传递给了<code>make</code>。</p>
-
 <pre><code>mySlice := make([]string, 5, 8)
 mySlice[0] = &quot;Apple&quot;
 mySlice[1] = &quot;Orange&quot;
@@ -97,38 +89,23 @@ mySlice[4] = &quot;Plum&quot;
 // You don’t need to include the capacity. Length and Capacity will be the same
 mySlice := make([]string, 5)
 </code></pre>
-
 <p>我们也能够通过逐个元素来创建切片。这种情况下，切片的长度和容量是相同的。需要注意这里在<code>[]</code>中没有具体的数。如果你添加了，那将会变成数组了。不添加，则创建的是切片：</p>
-
 <pre><code>mySlice := []string{&quot;Apple&quot;, &quot;Orange&quot;, &quot;Banana&quot;, &quot;Grape&quot;, &quot;Plum&quot;}
 </code></pre>
-
 <p>一旦切片创建了，我们就不能扩展它的容量了。唯一改变切片容量的方式是创建一个新的切片，然后执行拷贝操作。<code>Andrew</code>在文章中提到了一个简单函数来检测切片的剩余容量。</p>
-
 <p><strong>切片的长度</strong>表示的是隐含数组中，从起始索引开始的实际元素的个数； <strong>切片的容量</strong>表示我们能够利用的元素个数。</p>
-
 <p>我们能够从原始切片中创建一个新的切片：</p>
-
 <pre><code>newSlice := mySlice[2:4]
 </code></pre>
-
-<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-2.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-2.png" alt=""></p>
 <p><a href="https://play.golang.org/p/OGFZgT4Y_n">新切片</a>指针变量的值关联了原来隐含数组的索引位置2和3。对于新的切片而言，我们现在有包含3个元素的隐含数组，我们仅仅用了其中的两个。这里新切片对隐含数组中的前两个位置的元素是不知道的，并且永远也不会用到。</p>
-
 <p>当执行切片操作时，第一个元素指定了从切片指针变量位置开始的索引。在上面的例子中，我们说从第二个索引（对应隐含数组中的第3个元素）开始取切片元素。第二个参数是最后索引位置+1的值，我们说新的切片结束位置索引号为3。</p>
-
 <p>当然，我们在执行切片操作是，不需要经常指定起始或者结束位置：</p>
-
 <pre><code>newSlice2 = newSlice[:cap(newSlice)]
 </code></pre>
-
-<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-3.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-3.png" alt=""></p>
 <p>在这个示例中，我们利用<code>newSlice</code>创建了第三个新的切片。我们没有指定起始的索引，但是指定了结束索引的位置。<code>newSlice2</code>与<code>newSlice</code>比较，有相同的起始位置，以及容量，但是长度却发生了变化。通过将<code>newSlice</code>的容量大小作为<code>newSlice2</code>的结束索引，那么<code>newSlice2</code>将使用隐含数组的所有剩余的元素。</p>
-
 <p>下面我们来运行一段<a href="https://play.golang.org/p/XPRU0D0H1N">程序</a>，来证明这种数据结构的确是存在的，并且切片也是按照我们所预想的运行的。下面的程序通过观测内存地址，来观测切片：</p>
-
 <pre><code>func InspectSlice(slice []string) {
     // Capture the address to the slice structure
     address := unsafe.Pointer(&amp;slice)
@@ -163,11 +140,8 @@ mySlice := make([]string, 5)
     fmt.Printf(&quot;\n\n&quot;)
 }
 </code></pre>
-
-<p>函数<code>InspectSlice</code>进行了一系列的指针操作，以便我们能够看到切片的*数据结构*和*隐含数组*的内存和值的信息。</p>
-
+<p>函数<code>InspectSlice</code>进行了一系列的指针操作，以便我们能够看到切片的<em>数据结构</em>和<em>隐含数组</em>的内存和值的信息。</p>
 <p>后续我们将会一一拆分讲解，第一步，我们先来创建一个切片，然后通过<code>InspectSlice</code>函数运行它：</p>
-
 <pre><code>package main
 
 import (
@@ -186,9 +160,7 @@ func main() {
     InspectSlice(orgSlice)
 }
 </code></pre>
-
 <p>下面是程序的输出：</p>
-
 <pre><code>Slice Addr[0x2101be000] Len Addr[0x2101be008] Cap Addr[0x2101be010]
 Slice Length[5] Cap[8]
 [0] 0x2101bd000 Apple
@@ -197,11 +169,8 @@ Slice Length[5] Cap[8]
 [3] 0x2101bd030 Grape
 [4] 0x2101bd040 Plum
 </code></pre>
-
 <p><code>InspectSlice</code>函数，首先打印了前篇数据结构的地址，以及长度值、容量值所在的地址。然后通过根据这些地址创建的<code>int</code>类型指针，打印出长度和容量的值。最后我们创建了一个指向隐含数组的指针。通过这个指针，我们遍历这个隐含数组，打印出索引值、每个元素的起始地址、以及每个元素的值。</p>
-
 <p>让我们将<code>InspectSlice</code>函数拆分，逐个讲解它是如何工作的：</p>
-
 <pre><code>// Capture the address to the slice structure
 address := unsafe.Pointer(&amp;slice)
 
@@ -209,52 +178,33 @@ address := unsafe.Pointer(&amp;slice)
 lenAddr := uintptr(address) + uintptr(8)
 capAddr := uintptr(address) + uintptr(16)
 </code></pre>
-
 <p><code>unsafe.Pointer</code>是一个特殊的类型，它能够映射到<code>uintptr</code>类型。因为我们需要执行指针运算，我们需要得到真实的指针。代码段第一行将切片数据结构的地址强制转换成了<code>unsafe.Pointer</code>，然后我们创建了两个普通指针，它们对数据结构地址分别进行了加8和加16的操作(<strong>注意：这里具体跟操作系统版本有关，32位系统分别加4加8</strong>)。</p>
-
 <p>下面的图展示了每个指针变量，指针指向地址的值：</p>
-
-<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-4.png" alt="" /></p>
-
+<p><img src="../../../../pic/2016/2016-03-01-understanding-slices-in-go-programming-4.png" alt=""></p>
 <p>我们通过这些指针，能够转换成指定类型的指针，就能够显示指向的值了。这里我们创建了两个整型指针，以便于显示切片数据结构中的长度和容量的值。</p>
-
 <pre><code>// Create pointers to the length and cap size
 lenPtr := (*int)(unsafe.Pointer(lenAddr))
 capPtr := (*int)(unsafe.Pointer(capAddr))
 </code></pre>
-
 <p>We now need a pointer of type [8]string, which is the type of underlying array.</p>
-
 <p>现在我们需要获取<code>[8]string</code>类型的指针，这也是隐含数组的类型：</p>
-
 <pre><code>// Create a pointer to the underlying array
 addPtr := (*[8]string)(unsafe.Pointer(*(*uintptr)(address)))
 </code></pre>
-
 <p>这条语句中有很多的细节，我们拆分开来解析：</p>
-
 <pre><code>(*uintptr)(address) : 0x2101be000
 </code></pre>
-
 <p>这条语句表示获取切片数据结构的起始地址，然后强转成普通的指针。</p>
-
 <pre><code>* (*uintptr)(address) : 0x2101bd000
 </code></pre>
-
 <p>然后我们就能够通过普通的指针获取到其中的值，这个值也就是指向隐含数组的起始地址值</p>
-
 <pre><code>unsafe.Pointer(*(*uintptr)(address))
 </code></pre>
-
 <p>然后我们将隐含数组起始地址的值转换成<code>unsafe.Pointer</code>类型，因为我们需要<code>unsafe.Pointer</code>类型指针做最终的转换。</p>
-
 <pre><code>(*[8]string)(unsafe.Pointer(*(*uintptr)(address)))
 </code></pre>
-
 <p>最终，我们将<code>unsafe.Pointer</code>类型转换成合适的指针类型(<code>[8]string</code>类型)</p>
-
 <p>剩下的代码片段，通过合适的指针来显示数组中的值：</p>
-
 <pre><code>fmt.Printf(&quot;Slice Addr[%p] Len Addr[0x%x] Cap Addr[0x%x]\n&quot;,
     address,
     lenAddr,
@@ -271,9 +221,7 @@ for index := 0; index &lt; *lenPtr; index++ {
         (*addPtr)[index])
 }
 </code></pre>
-
 <p>下面，让我们将整个<a href="https://play.golang.org/p/kXtJAQh7gw">程序</a>放在一起，创建很多个切片。我们将观察创建的每个切片以确保我们所知道的这些知识是正确的：</p>
-
 <pre><code>package main
 
 import (
@@ -302,9 +250,7 @@ func main() {
     InspectSlice(slice2)
 }
 </code></pre>
-
 <p>下面是每个切片的输出结果，这里我们创建了一个长度为5、容量为8的切片：</p>
-
 <pre><code>Code:
 orgSlice := make([]string, 5, 8)
 orgSlice[0] = &quot;Apple&quot;
@@ -322,9 +268,7 @@ Slice Length[5] Cap[8]
 [3] 0x2101bd030 Grape
 [4] 0x2101bd040 Plum
 </code></pre>
-
 <p>输出结果正如我们所预期的那样。然后我们创建了变量<code>slice2</code>，它包含两个元素，索引分别为2和3：</p>
-
 <pre><code>Code:
 slice2 := orgSlice[2:4]
 InspectSlice(slice2)
@@ -335,11 +279,8 @@ Slice Length[2] Cap[6]
 [0] 0x2101bd020 Banana
 [1] 0x2101bd030 Grape
 </code></pre>
-
 <p>从对<code>slice2</code>的输出中，我们看到它的长度和容量分别是2和6.因为该切片的起始位置对应，是<code>orgSlice</code>的隐含数组中的第三个元素，索引只能够容纳下6个元素。<code>slice2</code>的索引0对应<code>orgSlice</code>的索引2.</p>
-
 <p>下面我们新建一个切片，起始位置为1，结束位置为<code>slice2</code>的最后一个元素位置：</p>
-
 <pre><code>Code:
 slice3 := slice2[1:cap(slice2)]
 InspectSlice(slice3)
@@ -353,11 +294,8 @@ Slice Length[5] Cap[5]
 [3] 0x2101bd060
 [4] 0x2101bd070
 </code></pre>
-
 <p>正如我们所期望的，<code>slice3</code>的长度和容量斗是。当你打印这个切片的所有值，你会发现最后三个元素没有值。因为当隐含数组被创建时，已经初始化了其中的所有值。你会看到<code>slice3</code>的索引0对应<code>slice2</code>的索引1，对应<code>orgSlice</code>的索引3，他们的指针都是<strong>0x2101bd030</strong>。</p>
-
 <p>最后一段代码改变了<code>slice3</code>中的第一个元素，即索引为0的值。然后我们看改变后<code>slice3</code>和<code>slice2</code>值的变化：</p>
-
 <pre><code>slice3[0] = &quot;CHANGED&quot;
 InspectSlice(slice3)
 InspectSlice(slice2)
@@ -376,9 +314,7 @@ Slice Length[2] Cap[6]
 [0] 0x2101bd020 Banana
 [1] 0x2101bd030 CHANGED
 </code></pre>
-
 <p>我们看到两个切片在它们各种的索引上的值都发生了变化。这证明了所有切片都使用相同的隐含数组。</p>
-
 <p><code>InspectSlice</code>函数证明了：每个切片都包含它们各自的数据结构（包含指向隐含数组的指针，切片的长度值，容量值）。花些时间创建更多的切片，然后利用<code>InspectSlice</code>函数来证明你的假设吧！</p>
             </div>
             
@@ -433,15 +369,8 @@ Slice Length[2] Cap[6]
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

@@ -72,103 +72,65 @@
 
             <div class="post-content">
                 <p>Golang中Error作为返回值是很常见的，几乎每个函数返回值都有error的interface。本文翻译自<a href="https://www.goinggo.net/2014/10/error-handling-in-go-part-i.html">Error Handling In Go, Part I</a>，作者在该篇中对error接口的创建、使用等做了详细描述。</p>
-
 <h3 id="简介">简介</h3>
-
 <p>在Go语言中，使用error接口作为函数或者方法的返回值是一种很惯用的方法。这个接口同样在Go的标准库中也作为返回值。</p>
-
 <p>例如，这是http包的Get方法声明：</p>
-
 <p><strong>Listing 1.1</strong></p>
-
 <pre><code>func (c *Client) Get(url string) (resp *Response, err error)
 </code></pre>
-
 <p>一般都会在函数、方法的返回中，判断error的值是否为<code>nil</code>:</p>
-
 <p><strong>Listing 1.2</strong></p>
-
 <pre><code>resp, err := c.Get(&quot;http://goinggo.net/feeds/posts/default&quot;)
 if err != nil {
     log.Println(err)
     return
 }
 </code></pre>
-
 <p>在 listing 1.2, 对<code>Get</code>方法的调用通过两个局部变量返回。 然后比较<code>err</code>变量是否等于<code>nil</code>。 如果不等，则表示有错误。</p>
-
 <p>因为<code>error</code>是用于处理错误的接口，我们需要根据提供的接口实现具体的代码。标准库中<code>errorString</code>已经实现了该接口。</p>
-
 <h3 id="error接口与errstring结构">Error接口与errString结构</h3>
-
 <p><code>error</code>的接口声明如下：</p>
-
 <p><strong>Listing 1.3</strong></p>
-
 <pre><code>type error interface {
 Error() string
 }
 </code></pre>
-
 <p>在 listing 1.3中, 我们看到<code>err</code>接口的声明仅仅包括一个<code>Error</code>, 该方法返回<code>string</code>类型。因此，<strong>任何类型只要实现了<code>Error</code>方法，也就实现了<code>err</code>接口</strong>。 关于<code>Go</code>中的接口，可以参考<a href="https://www.goinggo.net/2014/05/methods-interfaces-and-embedded-types.html">Methods, Interfaces and Embedded Types in Go</a></p>
-
 <p>标准库中也声明了<code>errorString</code>的结构，该结构在<code>errors</code>包中：</p>
-
 <p><strong>Listing 1.4</strong></p>
-
 <pre><code>http://golang.org/src/pkg/errors/errors.go
 type errorString struct {
  s string
 }
 </code></pre>
-
 <p>在 listing 1.4中, 我们看到<code>errorString</code>中只有一个类型为<code>string</code>的字段。我们能够看到结构以及内部的字段都是不能够被外部访问的，我们不能直接访问该结构或者它内部的变量，具体可以参考<a href="https://www.goinggo.net/2014/03/exportedunexported-identifiers-in-go.html">Exported/Unexported Identifiers in Go</a></p>
-
 <p><strong>Listing 1.5</strong></p>
-
 <pre><code>func (e *errorString) Error() string {
     return e.s
 }
 </code></pre>
-
 <p>我们可以看到listing 1.5中，<code>error</code>接口通过指针类型的接受者<code>(*errorString)</code>实现了。<code>errorString</code>类型是标准库中最常用的类型，它能够作为<code>error</code>类型接口的返回值。</p>
-
 <p>下面我们来学习标准库中如何通过<code>errorString</code>结构来创建<code>error</code>类型的接口。</p>
-
 <h3 id="创建error值">创建Error值</h3>
-
 <p>标准库中，提供了两种方式来创建<code>errorString</code>类型的指针，以作为<code>error</code>类型的接口使用。当你定义的error是一个string类型，且不需要具体的格式化参数，那么可以通过<code>errors</code>包的<code>New</code>函数定义。</p>
-
 <p><strong>Listing 1.6</strong></p>
-
 <pre><code>var ErrInvalidParam = errors.New(&quot;mypackage: invalid parameter&quot;)
 </code></pre>
-
 <p>Listing 1.6中, 显示了<code>errors</code>包的<code>New</code>函数的调用。在这个示例中，我们声明了一个<code>error</code>类型的接口变量，然后通过调用<code>New</code>函数初始化该变量。下面为<code>New</code>的实现：</p>
-
 <p><strong>Listing 1.7</strong></p>
-
 <pre><code>// New returns an error that formats as the given text.
 func New(text string) error {
     return &amp;errorString{text}
 }
 </code></pre>
-
 <p>Listing 1.7中, 我们看到函数以<code>string</code>类型作为参数传入，返回了<code>error</code>类型的接口。在该函数的实现中，创建了一个<code>errorString</code>类型的指针。 在return语句中，编译器创建了<code>error</code>类型的接口，然后结合指针，作为返回。 <code>errorString</code>指针作为隐含的数据，当做<code>error</code>接口的值返回了。</p>
-
 <p>那么问题来了，如果我们的错误消息需要格式化呢？ 不着急，下面的 <code>fmt</code>包中的<code>Errorf</code>函数能够做到。</p>
-
 <p><strong>Listing 1.8</strong></p>
-
 <pre><code>var ErrInvalidParam = fmt.Errorf(&quot;invalid parameter [%s]&quot;, param)
 </code></pre>
-
 <p>Listing 1.8中, 我们可以看到<code>Errorf</code>函数被调用了。如果你对<code>fmt</code>包中的其他函数熟悉，你就知道这个函数跟其他函数是类似的了。这里，通过调用<code>Errorf</code>函数， 我们再次创建并初始化了一个<code>error</code>类型的接口变量。</p>
-
 <p>下面我们揭开<code>Errorf</code>函数的神秘面纱</p>
-
 <p><strong>Listing 1.9</strong></p>
-
 <pre><code>http://golang.org/src/pkg/fmt/print.go
 
 // Errorf formats according to a format specifier and returns the string
@@ -177,17 +139,11 @@ func Errorf(format string, a …interface{}) error {
     return errors.New(Sprintf(format, a…))
 }
 </code></pre>
-
-<p>Listing 1.9中, 我们看到依然是通过<code>error</code>接口作为返回值类型的。 在该函数的实现中，调用了<code>errors</code>包的<code>New</code>函数，其中参数为格式化好的字符串。所以不管你使用<code>errors</code>包或者<code>fmt</code>包来创建<code>error</code>类型的接口，<strong><em>底层都是为<code>errorString</code>类型的指针</em></strong>。</p>
-
+<p>Listing 1.9中, 我们看到依然是通过<code>error</code>接口作为返回值类型的。 在该函数的实现中，调用了<code>errors</code>包的<code>New</code>函数，其中参数为格式化好的字符串。所以不管你使用<code>errors</code>包或者<code>fmt</code>包来创建<code>error</code>类型的接口，<em><strong>底层都是为<code>errorString</code>类型的指针</strong></em>。</p>
 <p>现在我们有两种不同的方式，都能通过<code>errorString</code>的指针实现<code>error</code>类型的接口。下面我们来学习在标准库中，如何在API调用中返回特有的<code>errors</code>信息。</p>
-
 <h3 id="比较errors值">比较Errors值</h3>
-
 <p>在<code>bufio</code>包中（标准库中其他包也是一样的），通过<code>errors</code>包中的<code>New</code>函数来创建不同error变量。</p>
-
 <p><strong>Listing 1.10</strong></p>
-
 <pre><code>http://golang.org/src/pkg/bufio/bufio.go
 
 var (
@@ -197,11 +153,8 @@ var (
     ErrNegativeCount     = errors.New(&quot;bufio: negative count&quot;)
 )
 </code></pre>
-
 <p>Listing 1.10 展示了四个不同的error变量，它们都在<code>bufio</code>包中声明、初始化。注意到这些变量都是通过<code>Err</code>作为前缀的，在Go中这是一种约定俗成的书写方式。因为这些变量都被声明为<code>error</code>类型接口，我们能够区分指定的错误，这些错误可以是由<code>bufio</code>包中不同的API返回的：</p>
-
 <p><strong>Listing 1.11</strong></p>
-
 <pre><code>data, err := b.Peek(1)
 if err != nil {
     switch err {
@@ -217,13 +170,9 @@ if err != nil {
     }
 }
 </code></pre>
-
 <p>在 listing 1.11 中，示例代码调用了<code>bufio.Reader</code>类型指针值的<code>Peek</code>方法。<code>Peek</code>方法返回的值可能是<code>ErrNegativeCount</code>或是 <code>ErrBufferFull</code>变量。 因为这些变量已经对外暴露了，所以我们能够利用这些变量来区分具体是哪个错误。区分这些变量也是标准库中错误处理的一部分。</p>
-
 <p>设想如果我们没有声明这些<code>error</code>变量，那么我们不得不通过比较具体的错误信息来判断我们获得的是那些错误：</p>
-
 <p><strong>Listing 1.12</strong></p>
-
 <pre><code>data, err := b.Peek(1)
 if err != nil {
     switch err.Error() {
@@ -239,26 +188,18 @@ if err != nil {
     }
 }
 </code></pre>
-
 <p>在listing 1.12的例子中，有两个问题：首先，<code>Error()</code>函数的调用会产生一份错误消息的拷贝；其次，如果包的开发者改变了这些消息内容，那么这段代码就有问题了。</p>
-
 <p>下面的<code>io</code>包是另外一个例子，声明了<code>error</code>类型的变量，并且都能够作为错误返回：</p>
-
 <p><strong>Listing 1.13</strong></p>
-
 <pre><code>var ErrShortWrite    = errors.New(&quot;short write&quot;)
 var ErrShortBuffer   = errors.New(&quot;short buffer&quot;)
 var EOF              = errors.New(&quot;EOF&quot;)
 var ErrUnexpectedEOF = errors.New(&quot;unexpected EOF&quot;)
 var ErrNoProgress    = errors.New(&quot;multiple Read calls return no data or error&quot;)
 </code></pre>
-
 <p>Listing 1.13显示了在<code>io</code>包中的六个<code>error</code>变量。其中第三个变量是<code>EOF</code>错误变量的声明，表示没有多余的输入变量了。通常会在这个包中比较将函数返回的错误值与该值进行比较。</p>
-
 <p>下面是<code>io</code>包中的<code>ReadAtLeast</code>函数的实现：</p>
-
 <p><strong>Listing 1.14</strong></p>
-
 <pre><code>func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
     if len(buf) &lt; min {
         return 0, ErrShortBuffer
@@ -276,31 +217,20 @@ var ErrNoProgress    = errors.New(&quot;multiple Read calls return no data or er
     return
 }
 </code></pre>
-
 <p>在listing 1.14中，<code>ReadAtLeast</code>函数显示了如何使用这些错误变量。这里要注意到 <code>ErrShortBuffer</code> 和 <code>ErrUnexpectedEOF</code>是如何作为返回值的。 同样需要注意到函数如何比较<code>err</code>变量与<code>EOF</code>变量的。</p>
-
 <p>在你自己写的API中，创建错误类型变量，需要考虑是否有必要自己是实现，这也能使你提升错误处理的能力。</p>
-
 <h3 id="为何不是值类型">为何不是值类型</h3>
-
 <p>这里，也许会想到一个问题，为啥Go语言的设计者不直接设计一个<code>errString</code>的值类型，而是使用结构类型？</p>
-
 <p>值类型可以定义为如下方式：</p>
-
 <pre><code>type errorString string
 </code></pre>
-
 <p>结构类型定位为如下方式：</p>
-
 <pre><code>type errorString struct {
  s string
 }
 </code></pre>
-
 <p>下面给出命名类型的具体实现例子：</p>
-
 <p><strong>Listing 1.15</strong></p>
-
 <pre><code>01 package main
 02 
 03 import (
@@ -337,17 +267,11 @@ var ErrNoProgress    = errors.New(&quot;multiple Read calls return no data or er
 Output:
 Named Type Error
 </code></pre>
-
 <p>Listing 1.15 提供了简单的示例，显示了<code>errorString</code>作为值类型的错误使用。在09行声明了一个<code>string</code>的值类型，在12行，<code>error</code>接口通过命名类型是吸纳。在17行实行了<code>New</code>函数定义。</p>
-
 <p>在21和22行，定义、初始化了两种不同类型的变量。分别通过<code>New</code>函数和 <code>errors.New</code>函数进行初始化。最后，在<code>main()</code>函数中，与相同的方式创建的变量进行了比较。</p>
-
 <p>当你运行这段代码时，得到了上述有趣的结果。25行<code>if</code>条件成立，而29行<code>if</code>条件不成立。通过使用命名类型，我们能够创建<code>error</code>类型值得接口，而且如果错误信息相同，那么就会匹配。这导致的问题其实和1.12l类似，因为我们能够创建自己的<code>error</code>值，并且使用它们。如果是通过值类型创建的<code>error</code>，那么包的作者改变错误消息的话，我们的代码判断就出问题了。</p>
-
 <p>同样我们也能通过<code>errorString</code>的结构体类型复现上面的问题，只要接受者为值(T, 而不是 *T), 实现<code>error</code>接口如下：</p>
-
 <p><strong>Listing 1.16</strong></p>
-
 <pre><code>01 package main
 02
 03 import (
@@ -377,17 +301,11 @@ Named Type Error
 Output:
 Error: EOF
 </code></pre>
-
-<p>在listing 1.16中，我们实现了<code>errorString</code>的结构体类型，该类型对于<code>error</code>接口的实现用的接受者是 <code>errorString</code>, 而非<code>* errorString</code>. 这一次得到的结果正如 listing 1.15 一样，<strong><em>他们真正比较的其实是具体类型中的值</em></strong>。11-13行代码 可以与 listing 1.9 进行比较，值得回味哈。</p>
-
+<p>在listing 1.16中，我们实现了<code>errorString</code>的结构体类型，该类型对于<code>error</code>接口的实现用的接受者是 <code>errorString</code>, 而非<code>* errorString</code>. 这一次得到的结果正如 listing 1.15 一样，<em><strong>他们真正比较的其实是具体类型中的值</strong></em>。11-13行代码 可以与 listing 1.9 进行比较，值得回味哈。</p>
 <p>在标准库中，** 使用<code>* errorString</code>作为<code>error</code>接口的实现的接受者 ** ，<code>errors.New</code>函数强制返回了指针值， 这个指针就是绑定接口的值，并且每次调用都是指向同一个对象。这种情况下比较的其实是指针的值，而不是真正的错误消息。</p>
-
 <h3 id="总结">总结</h3>
-
 <p>该篇文章中，我们初步理解了<code>error</code>接口是什么，如何与<code>errorString</code>结构相结合的。 通过<code>errors.New</code>和<code>fmt.Errorf</code>函数来创建<code>error</code>类型的接口值，这种方式是非常普遍并且也是强烈推荐的。</p>
-
 <p>我们也可以暴露（对外能否访问）我们定义的<code>error</code>类型的接口值（通常是标准库定义的），它能够通过API调用返回，帮助我们识别不同的错误信息。很多标准库的包中创建了这些对外可以访问的<code>error</code>变量，这些通常已经提供了足够的识粒度来区分不同的错误信息。</p>
-
 <p>有时我们需要自己创建合理的<code>error</code>类， 这些将会在第二部分中讲述。现在，请使用标准库提供的支持来处理错误吧！</p>
             </div>
             
@@ -442,30 +360,8 @@ Error: EOF
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#简介">简介</a></li>
-<li><a href="#error接口与errstring结构">Error接口与errString结构</a></li>
-<li><a href="#创建error值">创建Error值</a></li>
-<li><a href="#比较errors值">比较Errors值</a></li>
-<li><a href="#为何不是值类型">为何不是值类型</a></li>
-<li><a href="#总结">总结</a></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>

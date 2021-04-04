@@ -72,31 +72,20 @@
 
             <div class="post-content">
                 <p>初学Golang时，一直困惑其中的<code>struct类型</code>是否等同于面向对象中的object, <code>interface</code>是否等同于多态。下面来好好扒一扒Golang与面向对象的关系。</p>
-
 <h3 id="go中的对象">Go中的对象</h3>
-
 <p>在面向对象的编程中，封装、继承、多态是主要的三大要素，表示对象本身的状态、行为；不同对象之间的相互关系等。Steve Francia对面向对象做了一个标准的定义：</p>
-
 <blockquote>
 <p>面向对象系统将数据和代码通过“对象”集成到一起，而不是将程序看成由分离的数据和代码组成。对象是数据类型的抽象，它有状态（数据）和行为（代码）</p>
 </blockquote>
-
 <p>那在Go语言中，并不像C++/Java那样通过class定义类对象及其方法，Go中实际并没有对象，但是Go中的结构体类型/struct有着跟object相同的特性。</p>
-
 <blockquote>
 <p>struct是一种包含了命名字段和方法的类型</p>
 </blockquote>
-
 <p>Go语言有意得被设计为没有继承语法。但这并不意味go中的对象（struct value)之间没有关系，只不过go的作者选择了另外一种机制来暗含这种特性。Go语言严格遵循着 <a href="https://en.wikipedia.org/wiki/Composition_over_inheritance">组合优于继承的原则</a></p>
-
 <p><strong>go通过在struct和interface上使用组合和多态来实现继承关系， 通过struct实现 has-a 关系； 通过interface实现 is-a 关系。</strong></p>
-
 <h3 id="方法">方法</h3>
-
-<p>Go 语言中同时有函数和方法。一个方法就是一个包含了<strong>接受者(类型对象)</strong>的函数，接受者可以是命名类型或者结构体类型的一个值或者是一个指针。也就是说我们可以给任意类型(包括内置类型，但不包括指针类型)添加相应的方法。</p>
-
+<p>Go 语言中同时有函数和方法。一个方法就是一个包含了**接受者(类型对象)**的函数，接受者可以是命名类型或者结构体类型的一个值或者是一个指针。也就是说我们可以给任意类型(包括内置类型，但不包括指针类型)添加相应的方法。</p>
 <p>下面简单给出示例说明：</p>
-
 <pre><code>import ”fmt“
 type User struct {
     Name  string
@@ -135,22 +124,15 @@ func main() {
     fmt.Printf(&quot;client.do info:%v\n&quot;, alimon)
 }
 </code></pre>
-
 <ul>
 <li>当接受者命名为一个值时，原来的对象的成员都没有变（age=20）</li>
 <li>当接受者命名为一个指针时，原来的对象成员发生了变化（age=21）</li>
 </ul>
-
 <p><em>当接受者不是一个<code>指针</code>而是<code>值</code>时，该方法操作对应接受者的值的副本（即使使用了指针调用函数，但是函数的接受者是值类型，所以函数内部操作还是对副本的操作）。</em></p>
-
 <h3 id="接口">接口</h3>
-
 <p>Go语言中的接口很特别，而且提供了难以置信的一系列灵活性和抽象性。接口(interface)是一组抽象方法的集合，如果实现了interface中的所有方法，即该对象就实现了该接口。在Go语言中，只要两个接口有相同的方法列表，那么就可以互相赋值，而不需要知道继承于哪里。</p>
-
 <p>当一个接口只包含一个方法时，按照Go语言的约定命名该接口时添加 -er 后缀。这个约定很有用，特别是接口和方法具有相同名字和意义的时候(在 Go 语言标准库中，一个接口基本包含一种方法)。</p>
-
 <p>下面简单给出示例说明：</p>
-
 <pre><code>package main
 import &quot;fmt&quot;
 type User struct {
@@ -185,14 +167,10 @@ func main() {
     SendNotification(user)
 }
 </code></pre>
-
 <p>运行结果如下：</p>
-
 <p><strong><code>cannot use user (type User) as type Notifier in argument to SendNotification:</code>
-    <code>User does not implement Notifier (Notify method has pointer receiver)</code></strong></p>
-
+<code>User does not implement Notifier (Notify method has pointer receiver)</code></strong></p>
 <p>上面运行说：User类型没有实现Notifier接口，但是User指针类型接受者实现了Notifier接口。 如果将上述的接受者改为值类型，就正常运行了：</p>
-
 <pre><code>func (u User) Notify() error {
     log.Printf(&quot;User: Sending User Email To %s&lt;%s&gt;\n&quot;,
         u.Name,
@@ -200,83 +178,71 @@ func main() {
     return nil
 }
 </code></pre>
-
 <p>或者只需要传入 User 值的地址到 SendNotification 函数：</p>
-
 <pre><code>user := &amp;User{
         Name:  &quot;AriesDevil&quot;,
         Email: &quot;ariesdevil@xxoo.com&quot;,
     }
 </code></pre>
-
 <p><strong>接口的调用规则不同于方法的调用， 接口的调用规则需要建立在这些方法的接受者和接口如何被调用的基础上。</strong> 下面是Go语言规范中定义的规则：</p>
-
 <ol>
-<li><p>类型 T 的可调用方法集不包含接受者为 *T 的方法</p>
-
-<p>即我们传入 SendNotification 函数的接口变量一个值类型的话，那 Notify() 方法的接受者必须是值类型的。</p></li>
-
-<li><p>类型 *T 的可调用方法集包含接受者为 *T 或 T 的所有方法集</p>
-
-<p>即我们传入 SendNotification 函数的接口变量一个指针类型的话，那 Notify() 方法的接受者可以是值类型也可以是指针类型。</p></li>
+<li>
+<p>类型 T 的可调用方法集不包含接受者为 *T 的方法</p>
+<p>即我们传入 SendNotification 函数的接口变量一个值类型的话，那 Notify() 方法的接受者必须是值类型的。</p>
+</li>
+<li>
+<p>类型 *T 的可调用方法集包含接受者为 *T 或 T 的所有方法集</p>
+<p>即我们传入 SendNotification 函数的接口变量一个指针类型的话，那 Notify() 方法的接受者可以是值类型也可以是指针类型。</p>
+</li>
 </ol>
-
-<h3 id="匿名域-匿名组合">匿名域/匿名组合</h3>
-
+<h3 id="匿名域匿名组合">匿名域/匿名组合</h3>
 <p>结构体类型可以包含匿名或者嵌入字段(嵌入类型的名字充当了匿名组合的字段名)。</p>
-
 <pre><code>type Admin struct {
   User
   Level  string
 }
 </code></pre>
-
 <p>Effective Go中有关于嵌入类型的规则描述：</p>
-
 <blockquote>
 <p>当我们嵌入一个类型，这个类型的方法就变成了外部类型的方法；但是当它被调用时，方法的接受者是内部类型(嵌入类型)，而非外部类型。</p>
 </blockquote>
-
 <p>下面的例子中，Admin和匿名组合User同时实现了Notifier接口，那么编译器该确定使用哪个接口？如下<a href="https://play.golang.org/p/8V4yo97AxN">完整代码</a></p>
-
 <pre><code>func main() {
-
-    a := &amp;Admin{
+	
+	a := &amp;Admin{
         User: User{
             Name:  &quot;admin&quot;,
             Email: &quot;ariesdevil@xxoo.com&quot;,
         },
         Level: &quot;master&quot;,
-    }
+	}
 
-    //Sending User Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
-    a.User.Notify()
+	//Sending User Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
+	a.User.Notify()
 
-    //Sending Admin Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
-    a.Notify()
+	//Sending Admin Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
+	a.Notify()
 }
 </code></pre>
-
 <p>从上述代码中可以看出，如果Admin类型的接口实现的输出，User 类型的接口实现不被提升到外部类型了。</p>
-
 <p>对于Go语言中外部类型方法集提升的规则：</p>
-
 <ol>
-<li><p>如果 S 包含一个匿名字段 T，S 和 *S 的方法集都包含接受者为 T 的方法提升</p></li>
-
-<li><p>对于 *S 类型的方法集包含接受者为 *T</p>
-
-<p>当外部类型使用指针调用内部类型的方法时，只有接受者为指针类型的内部类型方法集将被提升</p></li>
-
-<li><p>如果S包含一个匿名字段 *T，S 和 *S 的方法集都包含接受者为 T 或者 *T 的方法提升</p></li>
-
-<li><p>如果 S 包含一个匿名字段 T，S 的方法集不包含接受者为 *T 的方法提升</p></li>
+<li>
+<p>如果 S 包含一个匿名字段 T，S 和 *S 的方法集都包含接受者为 T 的方法提升</p>
+</li>
+<li>
+<p>对于 *S 类型的方法集包含接受者为 *T</p>
+<p>当外部类型使用指针调用内部类型的方法时，只有接受者为指针类型的内部类型方法集将被提升</p>
+</li>
+<li>
+<p>如果S包含一个匿名字段 *T，S 和 *S 的方法集都包含接受者为 T 或者 *T 的方法提升</p>
+</li>
+<li>
+<p>如果 S 包含一个匿名字段 T，S 的方法集不包含接受者为 *T 的方法提升</p>
+</li>
 </ol>
-
 <h3 id="go中的多态实现">Go中的多态实现</h3>
-
 <p>真正意义上，如果匿名域能实现多态，则外层独享应该等同于嵌入的对象，而实际上并非如此，他们仍然是不同的存在：</p>
-
 <pre><code>package main
 
 type A struct{
@@ -295,41 +261,35 @@ func main() {
     save(&amp;b);  //OOOPS! b IS NOT A
 }
 </code></pre>
-
 <p>多态是一种is-a的关系。在go语言中，每种类型(type)都是不同的，一种类型不能完全等同于另外一种类型，但它们可以绑定到同一个接口（interface）上。接口能用于函数（方法）的输入输出中，因而可以在类型之间建立起is-a的关系。 <a href="https://play.golang.org/p/Iw0g_OO0nj">完整代码</a></p>
-
 <pre><code>func SendNotification(notify Notifier) error {
-    return notify.Notify()
+	return notify.Notify()
 }
 
 func main() {
-    u := &amp;User{
+	u := &amp;User{
             Name:  &quot;user&quot;,
             Email: &quot;user@xxoo.com&quot;,
         }
-
-    a := &amp;Admin{
+		
+	a := &amp;Admin{
         User: User{
             Name:  &quot;admin&quot;,
             Email: &quot;admin@xxoo.com&quot;,
         },
         Level: &quot;master&quot;,
-    }
+	}
 
-    //Sending User Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
-    SendNotification(u)
+	//Sending User Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
+	SendNotification(u)
 
-    //Sending Admin Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
-    SendNotification(a)
+	//Sending Admin Email To AriesDevil&lt;ariesdevil@xxoo.com&gt;
+	SendNotification(a)
 }
 </code></pre>
-
 <h3 id="参考阅读">参考阅读</h3>
-
 <p><a href="http://studygolang.com/articles/4390">Go是面向对象语言吗？</a></p>
-
 <p><a href="https://www.goinggo.net/2014/05/methods-interfaces-and-embedded-types.html">Methods, Interfaces and Embedded Types in Go</a></p>
-
 <p><a href="http://www.jb51.net/article/56812.htm">Go语言中的方法、接口和嵌入类型详解</a></p>
             </div>
             
@@ -384,30 +344,8 @@ func main() {
         </article>
     </div>
     <div class="col-md-4">
-        
-<aside>
-        <div class="toc panel panel-default hidden-xs hidden-sm affix-top" data-spy="affix" data-offset-top="125" data-offset-bottom="300">
-            <div class="panel-heading">
-                <h2 class="panel-title">Catalog</h2>
-            </div>
-
-            <nav id="TableOfContents">
-<ul>
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#go中的对象">Go中的对象</a></li>
-<li><a href="#方法">方法</a></li>
-<li><a href="#接口">接口</a></li>
-<li><a href="#匿名域-匿名组合">匿名域/匿名组合</a></li>
-<li><a href="#go中的多态实现">Go中的多态实现</a></li>
-<li><a href="#参考阅读">参考阅读</a></li>
-</ul></li>
-</ul></li>
-</ul>
-</nav>
-        </div>
+        <aside>
+    
 </aside>
 
     </div>
