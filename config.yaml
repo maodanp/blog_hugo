@@ -19,7 +19,6 @@ params:
     GitHubUser: "maodanp"
     SidebarRecentLimit: 8
     DateForm: "2006年01月02日"
-    # Description: "一场雨，一场梦"
     Categories:
         - "技术志"
         - "工具箱"
@@ -39,4 +38,4 @@ menu:
           Weight: -100
           URL: "/about/"
 author:
-    name: "fatedier"
+    name: "maodanp"
