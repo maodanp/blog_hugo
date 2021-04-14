@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>C&#43;&#43; on Danping&#39;s blog</title>
+    <title>c&#43;&#43; on Danping&#39;s blog</title>
     <link>https://maodanp.github.io/tags/c&#43;&#43;/</link>
-    <description>Recent content in C&#43;&#43; on Danping&#39;s blog</description>
+    <description>Recent content in c&#43;&#43; on Danping&#39;s blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
@@ -42,6 +42,15 @@
       
       <guid>https://maodanp.github.io/2020/05/31/cpp_raii/</guid>
       <description>&lt;p&gt;本篇主要描述 &lt;code&gt;C++&lt;/code&gt; 的内存分配方式，以及 &lt;code&gt;RAII&lt;/code&gt; 、智能指针。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
+      <title>STL容器的区间成员函数</title>
+      <link>https://maodanp.github.io/2020/01/10/stl-range-methods/</link>
+      <pubDate>Fri, 10 Jan 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/01/10/stl-range-methods/</guid>
+      <description>&lt;p&gt;STL 中容器的插入、删除、赋值都有相应的区间成员函数，相比于单元素的成员函数而言，使用区间成员函数使得代码更加清晰，更加高效。&lt;/p&gt;</description>
     </item>
     
   </channel>
