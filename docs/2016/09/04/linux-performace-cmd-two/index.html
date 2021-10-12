@@ -74,7 +74,7 @@
                 <p><a href="/2016/09/03/linux-performace-cmd-one">前一篇</a>讲述了Linux分析常用的一些命令，本篇继续分析其他常用命令。</p>
 <h3 id="iostat">iostat</h3>
 <p>iostat主要用于监控系统设备的IO负载情况。 主要用法如下:</p>
-<pre><code>iostat -xz 1
+<pre tabindex="0"><code>iostat -xz 1
 
 Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz avgqu-sz   await  svctm  %util
 sda               0.00    51.00    0.00   22.00     0.00   648.00    29.45     0.00    0.05   0.05   0.10
@@ -95,22 +95,22 @@ avg-cpu:  %user   %nice %system %iowait  %steal   %idle
 <li><code>%util</code> 设备利用率。这个数值表示设备的繁忙程度，经验值是如果超过60，可能会影响IO性能（可以参照IO操作平均等待时间）。如果到达100%，说明硬件设备已经饱和。</li>
 </ul>
 <h3 id="free">free</h3>
-<pre><code>free -m
+<pre tabindex="0"><code>free -m
 
               total       used       free      shared     buffers   cached
 Mem:           1002        769        232        0           62       421
 -/+ buffers/cache:         286        715
 Swap: 1153 0 1153
 </code></pre><p>第一部分Mem行。该行是针对OS而言的，它认为buffers/cached都是属于被使用,所以它认为free只有232M。存在如下关系：</p>
-<pre><code>total(1002M) = used(769M) + free(232M)
+<pre tabindex="0"><code>total(1002M) = used(769M) + free(232M)
 </code></pre><p>第二部分(-/+ buffers/cache)从应用程序的角度而言的，Mem行的buffers/cached 是等同可用的，因为buffer/cached是为了提高程序执行的性能，当程序使用内存时，buffer/cached会很快地被使用。</p>
-<pre><code>* (-buffers/cache) used内存数：286M (Mem行中的used – buffers – cached)
+<pre tabindex="0"><code>* (-buffers/cache) used内存数：286M (Mem行中的used – buffers – cached)
 * (+buffers/cache) free内存数: 715M (Mem行中的free + buffers + cached)
 </code></pre><p><strong>从应用的角度看，可用内存就是-/+ buffers/cache行的free</strong>，如果可用内存非常少，系统可能会动用交换交换分区（如果配置了的话），这样会增加IO开销（可以在iostat命令中提现），降低系统性能。</p>
 <h3 id="sar">sar</h3>
 <h4 id="网络设备的吞吐率">网络设备的吞吐率</h4>
 <p><code>sar -n DEV 1</code> 可以用于查看各个网络设备的吞吐量，判断网络设备的饱和度。</p>
-<pre><code>sar -n DEV 1
+<pre tabindex="0"><code>sar -n DEV 1
 
 11时58分49秒     IFACE   rxpck/s   txpck/s    rxkB/s    txkB/s   rxcmp/s   txcmp/s  rxmcst/s
 11时58分50秒        lo    174.75    174.75     99.00     99.00      0.00      0.00      0.00
@@ -124,7 +124,7 @@ Swap: 1153 0 1153
 </code></pre><p>其中，<code>rxkB/s</code>，<code>txkB/s</code>分别表示网卡的单位时间的进出口流量。在排查性能问题时，可以通过网络设备的吞吐量，判断网络设备是否已经饱和。</p>
 <h4 id="tcp连接状态">TCP连接状态</h4>
 <p><code>sar -n TCP,ETCP 1</code>可以用于查看TCP连接状态。</p>
-<pre><code>sar -n TCP,ETCP 1
+<pre tabindex="0"><code>sar -n TCP,ETCP 1
 
 12时03分21秒  active/s passive/s    iseg/s    oseg/s
 12时03分22秒     13.13     11.11    277.78    283.84

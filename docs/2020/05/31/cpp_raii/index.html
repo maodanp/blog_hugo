@@ -85,7 +85,7 @@
 </ul>
 <p>对于堆上分配内存，我们只需要正确使用 new 和 delete 即可。每个 new 出来的对象都应该用 delete 来释放。但是有时候就忘记 delete 或者由于中间代码抛出异常，导致最后 delete 得不到执行，所以也花费了很多时间去查内存泄漏。</p>
 <p>比如如下代码，如果中间抛出异常，delete 就执行不到了。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">foo</span>()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">foo</span>()
 {
   bar<span style="color:#f92672">*</span> ptr <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> bar();
   <span style="color:#960050;background-color:#1e0010">…</span>
@@ -93,7 +93,7 @@
 }
 </code></pre></div><p>栈上分配/释放内存就容易的多了，跟所在函数的生命周期绑在一起。当函数执行完成，这些内存也自然就释放掉了。对于含有构造和析构函数的非 POD 类型，栈上的内存分配也同样有效，编译器能自动调用析构函数，包括在函数执行发生异常的情况下（称之为栈展开 stack unwinding）。</p>
 <p>下面展示了异常抛出时析构调用的情况：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">
 <span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span>
 <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Obj</span> {
@@ -120,7 +120,7 @@
   }
 }
 </code></pre></div><p>执行结果：</p>
-<pre><code>Obj()
+<pre tabindex="0"><code>Obj()
 ~Obj()
 Obj()
 ~Obj()
@@ -135,7 +135,7 @@ RAII 依托<code>栈</code>和<code>析构函数</code>，来对所有资源进�
 <li>运用析构函数确保资源被释放。一旦对象被销毁（ 离开作用域或者从队列中 remove ），其析构函数自然会被调用，于是资源被释放。</li>
 </ul>
 <p>比如可以这样使用：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">std<span style="color:#f92672">::</span>mutex mtx;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">std<span style="color:#f92672">::</span>mutex mtx;
 <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">some_func</span>()
 {
   std<span style="color:#f92672">::</span>lock_guard<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>mutex<span style="color:#f92672">&gt;</span> guard(mtx);
@@ -156,14 +156,14 @@ RAII 依托<code>栈</code>和<code>析构函数</code>，来对所有资源进�
 <ol>
 <li>不要与裸指针混用</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ptr</span>(<span style="color:#66d9ef">new</span> <span style="color:#66d9ef">int</span>(<span style="color:#ae81ff">10</span>));
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">ptr</span>(<span style="color:#66d9ef">new</span> <span style="color:#66d9ef">int</span>(<span style="color:#ae81ff">10</span>));
 shared_ptr<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> sp1(x);
 shared_ptr<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span><span style="color:#f92672">&gt;</span> sp2(x);
 </code></pre></div><p>虽然 sp1、sp2 都指向 ptr 所指的内存，但他们是独立的，并且裸指针本身也很危险，ptr 随时变成<code>空悬指针（ dangling pointer ）</code>，但是 sp1、sp2 都不知道。</p>
 <ol start="2">
 <li>避免循环引用</li>
 </ol>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;iostream&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;iostream&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;memory&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">using</span> <span style="color:#66d9ef">namespace</span> std;
 
@@ -217,7 +217,7 @@ shared_ptr<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int
                 
                 
                 <h4 id="real-rels">相关文章</h4>
-                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2020/06/11/cpp_move/">C&#43;&#43; 右值引用和移动语义</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2020年06月11日)</span></li><li id="li-rels"><a href="/2020/06/02/cpp_lambda/">C&#43;&#43; lambda 函数</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2020年06月02日)</span></li></ul>
+                <ul class="post-rels" id="real-rels"><li id="li-rels"><a href="/2020/06/20/cpp_auto_type/">C&#43;&#43; 中 auto &amp; decltype</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2020年06月20日)</span></li><li id="li-rels"><a href="/2020/06/11/cpp_move/">C&#43;&#43; 右值引用和移动语义</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2020年06月11日)</span></li><li id="li-rels"><a href="/2020/06/02/cpp_lambda/">C&#43;&#43; lambda 函数</a>&nbsp;&nbsp;<span class="post-date" style="font-size:14px">&nbsp;(2020年06月02日)</span></li></ul>
                 
             </aside>
                 

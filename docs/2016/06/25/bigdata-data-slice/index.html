@@ -127,7 +127,7 @@
 <p>引入”虚拟节点“的概念，主要为解决一致性哈希算法潜在的问题：机器节点映射到环状结构的位置是随机的，可能会导致机器负载不均衡；同时如果将所有机器平等看待会导致低配置机器高负载的情况。</p>
 <p>虚拟节点即将一个物理节点虚拟成若干的虚拟节点，分别映射到一致性哈希的环状结构的不同位置。一方面会有更佳的负载均衡，也可以兼顾到机器的异质性问题。</p>
 <p>下面简要展示Golang实现的<a href="https://github.com/stathat/consistent">一致性Hash算法</a>的主要结构。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//定义Hash环，切片中元素为有序的物理节点Hash值
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//定义Hash环，切片中元素为有序的物理节点Hash值
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Circle</span> []<span style="color:#66d9ef">uint32</span>
 
 

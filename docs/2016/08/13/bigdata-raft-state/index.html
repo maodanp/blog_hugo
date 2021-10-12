@@ -208,7 +208,7 @@
 <li>如果 leaderCommit &gt; commitIndex，令 commitIndex 等于 leaderCommit 和 最新日志项索引值中较小的一个</li>
 </ul>
 <p><strong>goraft</strong>中的<strong>AEs RPC</strong>处理过程基本遵循上述处理流程，对应中的主要代码段如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"> <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">server</span>) <span style="color:#a6e22e">processAppendEntriesRequest</span>(<span style="color:#a6e22e">req</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">AppendEntriesRequest</span>){
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"> <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">server</span>) <span style="color:#a6e22e">processAppendEntriesRequest</span>(<span style="color:#a6e22e">req</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">AppendEntriesRequest</span>){
 
       <span style="color:#75715e">//如果AppendEntries请求的term小于该server当前term
 </span><span style="color:#75715e"></span>      <span style="color:#75715e">//返回失败
@@ -254,7 +254,7 @@
 <li>如果收到大多数节点的<strong>AEs</strong>成功回应，后续会判断下次的提交编号，否则返回</li>
 <li>Leader根据大多数节点返回的上次log的索引编号，来决定这次提交的编号， 该提交编号将在下次随<strong>AEs RPC</strong>传给follower</li>
 </ul>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">server</span>) <span style="color:#a6e22e">processAppendEntriesResponse</span>(<span style="color:#a6e22e">resp</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">AppendEntriesResponse</span>) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">server</span>) <span style="color:#a6e22e">processAppendEntriesResponse</span>(<span style="color:#a6e22e">resp</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">AppendEntriesResponse</span>) {
  
       <span style="color:#75715e">// 如果发现AppendEntries的返回中term较大，则角色变为follower
 </span><span style="color:#75715e"></span>      <span style="color:#75715e">// 这个判断非常重要，能够保证网络分区恢复后的一致性
@@ -297,7 +297,7 @@
 <li>如果votedFor为空或者就是candidateId，并且候选人的日志也自己一样新，那么就投票给它</li>
 </ul>
 <p><strong>goraft</strong>中的<strong>RequestVote RPC</strong>处理过程主要代码段如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
 <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">server</span>) <span style="color:#a6e22e">processRequestVoteRequest</span>(<span style="color:#a6e22e">req</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">RequestVoteRequest</span>){
 
       <span style="color:#75715e">// term小于当前的，则返回false
@@ -328,7 +328,7 @@
   }
 
 </code></pre></div><p><strong>Candidate</strong>对于<strong>RequestVote RPC Response</strong>的处理流程:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
  <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">server</span>) <span style="color:#a6e22e">candidateLoop</span>() {
 	  <span style="color:#75715e">//处于 Candidate 状态，直到状态改变为leader或者follower
 </span><span style="color:#75715e"></span>	  <span style="color:#75715e">//否则超时后再次发起投票请求     

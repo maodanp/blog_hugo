@@ -98,7 +98,7 @@
 </ul>
 <h3 id="vmstat">vmstat</h3>
 <p>vmstat命令每行会输出一些系统核心指标，这些指标可以让我们更详细的了解系统状态。可以展现给定时间间隔的服务器的状态值,包括服务器的CPU使用率，内存使用，虚拟内存交换情况,IO读写情况。</p>
-<pre><code>vmstat 1
+<pre tabindex="0"><code>vmstat 1
 
 procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
@@ -117,7 +117,7 @@ procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
 </ul>
 <h3 id="mpstat">mpstat</h3>
 <p>mpstat（Multiprocessor Statistics）最大的特点是可以查看多核心cpu中每个计算核心的统计数据；而上述的vmstat只能查看系统整体cpu情况。以下命令是每2秒更新一次，查看多核CPU核心的当前运行状况信息：</p>
-<pre><code>mpstat  -P ALL 2
+<pre tabindex="0"><code>mpstat  -P ALL 2
 
 19:43:58     CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle
 19:43:59     all    0.00    0.00    0.04    0.00    0.00    0.00    0.00    0.00   99.96
@@ -130,7 +130,7 @@ procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
 </code></pre><p>如果有一个CPU占用率特别高，那么我们可以推断有可能是一个单线程应用程序引起的。</p>
 <h3 id="pidstat">pidstat</h3>
 <p>pidstat主要用于监控全部或指定进程占用系统资源的情况，如CPU，内存、设备IO、任务切换、线程等。</p>
-<pre><code>pidstat 1
+<pre tabindex="0"><code>pidstat 1
 Linux 2.6.32.12-0.7-default (linux)             06/18/12        _x86_64_
 
 11:37:19          PID    %usr %system  %guest    %CPU   CPU  Command

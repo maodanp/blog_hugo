@@ -97,7 +97,7 @@
 <p>将目标文件链接成可执行文件时，链接器会尽量将相同权限属性的段分配在同一空间。在 ELF 中把这些属性相似的，又连在一起的段叫做一个 <code>Segment</code>，系统正是按照 <code>Segment</code> 来映射可执行文件的。也就是说映射以后在进程虚拟内存空间中只有一个相对应的VMA，这样做的好处是可以明显减少页面内部碎片，从而节省了内存空间。</p>
 <p>比如如下的程序，使用静态链接的方式将其编译链接成可执行文件。</p>
 <p><strong>$gcc -static SectionMapping.c -o SectionMapping</strong></p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> a <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
 
 <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
@@ -108,7 +108,7 @@
     <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
 }
 </code></pre></div><p>使用 readelf 可以看到，这个可执行文件总共有 33 个段（Section）</p>
-<pre><code>There are 33 section headers, starting at offset 0x8ea08:
+<pre tabindex="0"><code>There are 33 section headers, starting at offset 0x8ea08:
 
 Section Headers:
   [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
@@ -124,7 +124,7 @@ Section Headers:
   [32] .strtab           STRTAB          00000000 096d60 006d82 00      0   0  1
 </code></pre><p>正如 ELF 中描述 <code>Section</code> 属性的结构叫做段表，描述 <code>Segment</code> 的结构叫 <strong>程序头</strong>（Program Header），<strong>它描述了 ELF 文件该如何被操作系统映射到进程的虚拟地址空间</strong>。</p>
 <p><strong>$readelf -l SectionMapping</strong></p>
-<pre><code>Elf file type is EXEC (Executable file)
+<pre tabindex="0"><code>Elf file type is EXEC (Executable file)
 Entry point 0x80481c0
 There are 5 program headers, starting at offset 52
 
@@ -141,7 +141,7 @@ Program Headers:
 <p>总体而言，<code>Segment</code> 和 <code>Section</code> 是从不同角度来划分同一个 ELF 文件。从 <code>Section</code> 角度来看 ELF 文件就是链接视图（Linking View），从 <code>Segment</code> 角度来看 ELF 文件则是执行视图（Execution View）。</p>
 <h4 id="堆和栈">堆和栈</h4>
 <p>进程在执行时会产生 <code>栈（Stack）</code>、<code>堆（Heap）</code> 等空间，很多情况下，一个进程中的堆和栈分别都有一个对应的 VMA 。Linux下可以通过 <code>/porc</code> 来查看进程的虚拟地址空间分布：</p>
-<pre><code>$ ./sectionMapping &amp;
+<pre tabindex="0"><code>$ ./sectionMapping &amp;
 [1] 8095
 
 $ cat /proc/8095/maps

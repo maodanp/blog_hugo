@@ -97,13 +97,13 @@
 <p>该命令的作用是在只有这个<code>key</code>不存在的时候才会设置这个<code>key</code>的值(<code>NX</code>选项的作用)，如果存在则不做任何动作直接返回；超时时间设为300毫秒(<code>PX</code>选项的作用).</p>
 <p>这里<code>key</code>的值是<code>random_value</code>，这个值必须在所有获取锁请求的客户端里保持唯一。 基本上这个随机值就是用来保证能安全地释放锁，因为每个锁只能被获得锁的节点删除，如果被其他节点删除，而获得锁的节点任务还没完成，其他节点会再次获得该锁，这样就违背了锁的互斥性。</p>
 <p>我们可以用下面的Lua脚本来实现锁的释放，保证获取锁与释放锁的节点是同一个。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-lua" data-lang="lua"><span style="color:#66d9ef">if</span> redis.call(<span style="color:#e6db74">&#34;get&#34;</span>,KEYS[<span style="color:#ae81ff">1</span>]) <span style="color:#f92672">==</span> ARGV[<span style="color:#ae81ff">1</span>] <span style="color:#66d9ef">then</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-lua" data-lang="lua"><span style="color:#66d9ef">if</span> redis.call(<span style="color:#e6db74">&#34;get&#34;</span>,KEYS[<span style="color:#ae81ff">1</span>]) <span style="color:#f92672">==</span> ARGV[<span style="color:#ae81ff">1</span>] <span style="color:#66d9ef">then</span>
         <span style="color:#66d9ef">return</span> redis.call(<span style="color:#e6db74">&#34;del&#34;</span>,KEYS[<span style="color:#ae81ff">1</span>])
     <span style="color:#66d9ef">else</span>
         <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>
     <span style="color:#66d9ef">end</span>
 </code></pre></div><p><code>Lock()</code>方法的代码大致如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">RedisLock</span>) <span style="color:#a6e22e">Lock</span>() (<span style="color:#a6e22e">lock</span> <span style="color:#66d9ef">bool</span>, <span style="color:#a6e22e">err</span> <span style="color:#66d9ef">error</span>) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">RedisLock</span>) <span style="color:#a6e22e">Lock</span>() (<span style="color:#a6e22e">lock</span> <span style="color:#66d9ef">bool</span>, <span style="color:#a6e22e">err</span> <span style="color:#66d9ef">error</span>) {
 	<span style="color:#a6e22e">until</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Now</span>().<span style="color:#a6e22e">Add</span>(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">TimeOut</span>)
 	<span style="color:#66d9ef">for</span> {
 		<span style="color:#75715e">// 大于超时时间，则返回超时
@@ -133,14 +133,14 @@
 </code></pre></div><p>以上<code>Lock()</code>方法的实现还是相对简单的，其中<code>r.TimeOut</code>为该方法的超时时间，<code>r.Expiry</code>为该锁在Redis存储的过期时间，<code>r.Delay</code>为尝试获取锁的重试间隔。</p>
 <h4 id="lua脚本实现方案">LUA脚本实现方案</h4>
 <p>SET方案相当于将<code>SET</code>，<code>NX</code>，<code>PX</code>合成了一个步骤，并由Redis保证它们的原子性。当然，我们也可以采用<code>lua</code>脚本方式，保证三者的原子性。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-lua" data-lang="lua">var setScript <span style="color:#f92672">=</span> redis.NewScript(<span style="color:#ae81ff">1</span>, <span style="color:#960050;background-color:#1e0010">`</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-lua" data-lang="lua">var setScript <span style="color:#f92672">=</span> redis.NewScript(<span style="color:#ae81ff">1</span>, <span style="color:#960050;background-color:#1e0010">`</span>
 <span style="color:#66d9ef">if</span> redis.call(<span style="color:#e6db74">&#34;SET&#34;</span>, KEYS[<span style="color:#ae81ff">1</span>], ARGV[<span style="color:#ae81ff">1</span>], <span style="color:#e6db74">&#34;NX&#34;</span>) <span style="color:#f92672">==</span> ARGV[<span style="color:#ae81ff">1</span>] <span style="color:#66d9ef">then</span>
 	<span style="color:#66d9ef">return</span> redis.call(<span style="color:#e6db74">&#34;EXPIRE&#34;</span>, KEYS[<span style="color:#ae81ff">1</span>], ARGV[<span style="color:#ae81ff">2</span>])
 <span style="color:#66d9ef">else</span>
 	<span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;ERR&#34;</span>
 <span style="color:#66d9ef">end</span><span style="color:#960050;background-color:#1e0010">`</span>)
 </code></pre></div><p>这样我们就可以使用如下代码代替上述的SET实现方案：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">reply</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">setScript</span>.<span style="color:#a6e22e">Do</span>(<span style="color:#a6e22e">conn</span>, <span style="color:#a6e22e">m</span>.<span style="color:#a6e22e">Name</span>, <span style="color:#a6e22e">curTime</span>, int(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Expiry</span><span style="color:#f92672">/</span><span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Millisecond</span>))
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">reply</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">setScript</span>.<span style="color:#a6e22e">Do</span>(<span style="color:#a6e22e">conn</span>, <span style="color:#a6e22e">m</span>.<span style="color:#a6e22e">Name</span>, <span style="color:#a6e22e">curTime</span>, int(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Expiry</span><span style="color:#f92672">/</span><span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Millisecond</span>))
 </code></pre></div><h4 id="setnxgetgetset-实现方案">SETNX+GET+GETSET 实现方案</h4>
 <p><code>SET val NX PX expire</code>方式是<strong>Redis2.6</strong>之后的版本引入的。如果生产环境不支持该用法，或者没有意识到可以利用<code>LUA</code>脚本保证其原子性，那么是否还有其他的实现方式？</p>
 <p>我们可以通过<code>SETNX</code>+<code>GET</code>+<code>GETSET</code>命令方式实现。主要步骤如下：</p>
@@ -151,7 +151,7 @@
 <li>比较<code>valGet</code>与<code>valGetSet</code>，如果一致，则说明该节点获取了锁，如果不一致，则说明在该节点<code>GETSET</code>之前，已经被其他节点<code>GETSET</code>成功了(即表示其他节点获得了该锁)，则sleep后重新尝试获取锁</li>
 </ol>
 <p><code>Lock()</code>方法的代码大致如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">RedisLock</span>) <span style="color:#a6e22e">Lock</span>() (<span style="color:#a6e22e">lock</span> <span style="color:#66d9ef">bool</span>, <span style="color:#a6e22e">err</span> <span style="color:#66d9ef">error</span>) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">RedisLock</span>) <span style="color:#a6e22e">Lock</span>() (<span style="color:#a6e22e">lock</span> <span style="color:#66d9ef">bool</span>, <span style="color:#a6e22e">err</span> <span style="color:#66d9ef">error</span>) {
 	<span style="color:#a6e22e">until</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Now</span>().<span style="color:#a6e22e">Add</span>(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">TimeOut</span>)
 	<span style="color:#66d9ef">for</span> {
 		<span style="color:#75715e">// timeOut

@@ -136,9 +136,9 @@
 </ul>
 <h4 id="系统调用在-glibc-中的实现">系统调用在 glibc 中的实现</h4>
 <p>这里以常见的系统调用 open 为例，分析系统调用怎么实现的。glibc 的 open 函数定义如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>pathname, <span style="color:#66d9ef">int</span> flags, mode_t mode);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>pathname, <span style="color:#66d9ef">int</span> flags, mode_t mode);
 </code></pre></div><p>在 glibc 的源码中，有个文件 <code>syscalls.list</code>, 里面罗列了所有 glibc 的函数对应的系统调用，如下：</p>
-<pre><code># File name	Caller	Syscall name	Args	Strong name	Weak names
+<pre tabindex="0"><code># File name	Caller	Syscall name	Args	Strong name	Weak names
 
 accept		-	accept		Ci:iBN	__libc_accept	accept
 access		-	access		i:si	__access	access
@@ -146,7 +146,7 @@ access		-	access		i:si	__access	access
 open		-	open		Ci:siv	__libc_open __open open
 ...
 </code></pre><p>我们来看 glibc 中的文件 <code>open.c</code> 的实现函数 <code>__libc_open</code> :</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">int</span>
 <span style="color:#a6e22e">__libc_open</span> (<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>file, <span style="color:#66d9ef">int</span> oflag, ...)
 {
   <span style="color:#66d9ef">int</span> mode <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
@@ -162,7 +162,7 @@ open		-	open		Ci:siv	__libc_open __open open
   <span style="color:#66d9ef">return</span> SYSCALL_CANCEL (openat, AT_FDCWD, file, oflag, mode);
 }
 </code></pre></div><p>最终，<code>SYSCALL_CANCEL</code> 在 <code>sysdep.h</code> 中的展开为：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define __INLINE_SYSCALL3(name, a1, a2, a3) \
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define __INLINE_SYSCALL3(name, a1, a2, a3) \
 </span><span style="color:#75715e">INLINE_SYSCALL (name, 3, a1, a2, a3)
 </span><span style="color:#75715e"></span>  
 <span style="color:#75715e">#ifndef INLINE_SYSCALL
@@ -170,7 +170,7 @@ open		-	open		Ci:siv	__libc_open __open open
 </span><span style="color:#75715e">#endif
 </span></code></pre></div><p><code>__syscall_##name</code> 在代码中完全找不到, 应该是 makefile 中有调用 <code>make-syscalls.sh</code> 来生成嵌套代码, 其使用模板是 <code>syscall-template.S</code>。</p>
 <p>在 <code>syscall-template.S</code> 中，定义了这个系统调用的调用方式：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">T_PSEUDO (SYSCALL_SYMBOL, SYSCALL_NAME, SYSCALL_NARGS)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">T_PSEUDO (SYSCALL_SYMBOL, SYSCALL_NAME, SYSCALL_NARGS)
     ret
 T_PSEUDO_END (SYSCALL_SYMBOL)
 
@@ -184,7 +184,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 </span><span style="color:#75715e">    cmpl $-4095, %eax;                               \
 </span><span style="color:#75715e">    jae SYSCALL_ERROR_LABEL
 </span></code></pre></div><p>对于任何一个系统调用，会调用 <code>DO_CALL</code>。对于 <strong>32 位系统</strong>而言，该实现（<code>i386/sysdep.h</code>）如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define DO_CALL(syscall_name, args)			          \
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define DO_CALL(syscall_name, args)			          \
 </span><span style="color:#75715e">    PUSHARGS_##args							  \
 </span><span style="color:#75715e">    DOARGS_##args							  \
 </span><span style="color:#75715e">    movl $SYS_ify (syscall_name), %eax;	      \
@@ -192,7 +192,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 </span><span style="color:#75715e">    POPARGS_##args
 </span></code></pre></div><p>其中 <code>movl $SYS_ify (syscall_name), %eax;</code> 表示将前面所讲的系统调用的调用号 <code>__NR_open</code> 赋给 <code>eax</code>。<code>ENTER_KERNEL</code> 宏展开就是 <code>int $0x80</code> 中断。</p>
 <p>其中，<code>__NR_open</code> 是一个宏，表示 open 系统调用的调用号。32 位系统，该宏的定义可以在 Linux 系统中 <code>/usr/include/asm/unistd_32.h</code> 中找到，64 位系统可以在 <code>/usr/include/asm/unistd_64.h</code> 中找到。以下是 32 位系统的调用号的宏定义：</p>
-<pre><code>#define __NR_restart_syscall      0
+<pre tabindex="0"><code>#define __NR_restart_syscall      0
 #define __NR_exit         1
 #define __NR_fork         2
 #define __NR_read         3
@@ -201,7 +201,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 #define __NR_close        6
 ......
 </code></pre><p>对于 64 位系统而言，<code>DO_CALL</code>实现（<code>x86_64/sysdep.h</code>）的定义如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define DO_CALL(syscall_name, args)					      \
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#define DO_CALL(syscall_name, args)					      \
 </span><span style="color:#75715e">  lea SYS_ify (syscall_name), %rax;					      \
 </span><span style="color:#75715e">  syscall
 </span></code></pre></div><p>这里 64 位系统还是将系统调用名称转换为系统调用号，放在寄存器 <code>rax</code> 中。但是不是通过中断，而是通过 <code>syscall</code> 指令进行真正的内核调用。<code>syscall</code> 指令使用了一种特殊的寄存器，<strong>特殊模块寄存器（Model Specific Registers, MSR）</strong>。</p>
@@ -209,9 +209,9 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 <p>(以下内核代码都是基于 <code>4.10.1</code> 版本)</p>
 <h5 id="触发中断与堆栈切换">触发中断与堆栈切换</h5>
 <p>在内核启动时调用 <code>start_kernel</code> 作为内核启动的函数入口， 其中有一个函数 <code>trap_init</code> 用于初始化中断的，里面有一句对于 <code>int $0x80</code> 的中断入口:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
 </code></pre></div><p>以下是 <code>entry_INT80_32</code> 的实现：</p>
-<pre><code>ENTRY(entry_INT80_32)
+<pre tabindex="0"><code>ENTRY(entry_INT80_32)
         ASM_CLAC
         pushl   %eax                    /* pt_regs-&gt;orig_ax */
         SAVE_ALL pt_regs_ax=$-ENOSYS    /* save rest */
@@ -222,7 +222,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 .Lirq_return:
 	INTERRUPT_RETURN
 </code></pre><p>通过 <code>push</code> 和 <code>SAVE_ALL</code> 将当前用户态的寄存器，保存在 <code>pt_regs</code> 结构里，然后调用<code>do_syscall_32_irqs_on</code>。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">static</span> __always_inline <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">do_syscall_32_irqs_on</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">pt_regs</span> <span style="color:#f92672">*</span>regs)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#66d9ef">static</span> __always_inline <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">do_syscall_32_irqs_on</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">pt_regs</span> <span style="color:#f92672">*</span>regs)
 {
 	<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">thread_info</span> <span style="color:#f92672">*</span>ti <span style="color:#f92672">=</span> current_thread_info();
 	<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> nr <span style="color:#f92672">=</span> (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span>)regs<span style="color:#f92672">-&gt;</span>orig_ax;
@@ -239,21 +239,21 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 <p>最终 <code>INTERRUPT_RETURN</code> 宏展开后为 <code>iret</code>，将原来用户态保存的线程恢复回来。包含代码段、指令指针寄存器等。</p>
 <h5 id="内核对系统函数的处理">内核对系统函数的处理</h5>
 <p>内核中会维护一个系统调用号与对应函数的系统调用表。这里以 32 位的系统调用表（<code>arch/x86/entry/syscalls/syscall_32.tbl</code>）为例：</p>
-<pre><code># &lt;number&gt; &lt;abi&gt; &lt;name&gt; &lt;entry point&gt; &lt;compat entry point&gt;
+<pre tabindex="0"><code># &lt;number&gt; &lt;abi&gt; &lt;name&gt; &lt;entry point&gt; &lt;compat entry point&gt;
 5	i386	open			sys_open  compat_sys_open
 </code></pre><p>其中第一列数字就是系统调用号，第四列是系统调用在内核的实现函数，都是以 <code>sys_</code> 开头。</p>
 <p>系统调用在内核中的实现函数声明一般在 <code>include/linux/syscalls.h</code> 文件中, 可以看到 <code>sys_open</code> 的声明：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">asmlinkage <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">sys_open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span>filename,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">asmlinkage <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">sys_open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span>filename,
 				<span style="color:#66d9ef">int</span> flags, umode_t mode);
 </code></pre></div><p>真正实现一般在对应的 <code>.c</code> 文件中，例如 <code>sys_ope</code>n 的实现在 <code>fs/open.c</code> 文件中。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">SYSCALL_DEFINE3(open, <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span>, filename, <span style="color:#66d9ef">int</span>, flags, umode_t, mode)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">SYSCALL_DEFINE3(open, <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span>, filename, <span style="color:#66d9ef">int</span>, flags, umode_t, mode)
 {
         <span style="color:#66d9ef">if</span> (force_o_largefile())
                 flags <span style="color:#f92672">|=</span> O_LARGEFILE;
         <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">do_sys_open</span>(AT_FDCWD, filename, flags, mode);
 }
 </code></pre></div><p>其中 <code>SYSCALL_DEFINE3</code> 是一个表示带有三个参数的宏，将其展开后，实现如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">asmlinkage <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">sys_open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span> filename, <span style="color:#66d9ef">int</span> flags, <span style="color:#66d9ef">int</span> mode)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">asmlinkage <span style="color:#66d9ef">long</span> <span style="color:#a6e22e">sys_open</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> __user <span style="color:#f92672">*</span> filename, <span style="color:#66d9ef">int</span> flags, <span style="color:#66d9ef">int</span> mode)
 {
  <span style="color:#66d9ef">long</span> ret;
 
@@ -278,7 +278,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 </ul>
 <h4 id="write-系统调用">write() 系统调用</h4>
 <p>这里我们没有使用 <code>printf</code> 这个标准库，而是使用 Linux 的系统调用 <code>write</code> 。参数 <code>1</code> 表示标准输出文件描述符。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;fcntl.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;fcntl.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span> () 
 {
@@ -287,7 +287,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 }
 </code></pre></div><h4 id="syscall-系统调用">syscall() 系统调用</h4>
 <p>现在，我们使用 glibc 提供的 <code>syscall</code> 接口，实现同样的逻辑。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;unistd.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sys/syscall.h&gt;</span><span style="color:#75715e">
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span> () 
 {
@@ -298,7 +298,7 @@ T_PSEUDO_END (SYSCALL_SYMBOL)
 <p>也就是说 <code>syscall</code> 也是一个系统调用，而且接口更加原始，其他的系统调用都可以看作是通过 <code>syscall</code> 实现的一种封装。</p>
 <h4 id="syscall-指令">syscall 指令</h4>
 <p>下面是通过汇编代码，实现同样的逻辑。这里的方法是将值放到对应的寄存器中，然后调用 <code>syscall</code> 指令。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">section .text global _start
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">section .text global _start
 _start<span style="color:#f92672">:</span> ; ELF entry point ; <span style="color:#ae81ff">1</span> is the number for syscall <span style="color:#a6e22e">write </span>().
 mov rax, <span style="color:#ae81ff">1</span>
 ; <span style="color:#ae81ff">1</span> is the STDOUT file descriptor.
@@ -319,7 +319,7 @@ section .data
 messageLen<span style="color:#f92672">:</span> dq message.end<span style="color:#f92672">-</span>message message<span style="color:#f92672">:</span> db <span style="color:#e6db74">&#39;Hello World&#39;</span>, <span style="color:#ae81ff">10</span>
 .end<span style="color:#f92672">:</span>
 </code></pre></div><p>对应汇编代码的 makefile 如下：</p>
-<pre><code>all:
+<pre tabindex="0"><code>all:
     nasm -felf64 write.asm
     ld write.o -o elf.write
 clean:

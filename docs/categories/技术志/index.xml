@@ -18,6 +18,15 @@
     </item>
     
     <item>
+      <title>C&#43;&#43; 中 auto &amp; decltype</title>
+      <link>https://maodanp.github.io/2020/06/20/cpp_auto_type/</link>
+      <pubDate>Sat, 20 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/06/20/cpp_auto_type/</guid>
+      <description>&lt;p&gt;C++11 的一个重要特性就是自动类型推导（auto type dedection)，通过引入 auto 和 decltype 关键字实现了类型推导，不仅能够方便的获取复杂类型，还能够简化书写，提高编码效率。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>C&#43;&#43; 右值引用和移动语义</title>
       <link>https://maodanp.github.io/2020/06/11/cpp_move/</link>
       <pubDate>Thu, 11 Jun 2020 00:00:00 +0000</pubDate>

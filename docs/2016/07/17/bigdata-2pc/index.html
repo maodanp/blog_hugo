@@ -134,7 +134,7 @@
 </ul>
 <h5 id="迁移任务">迁移任务</h5>
 <p>该模块主要负责<code>迁移任务</code>的发起，并将更新的状态写入<code>zookeeper</code>以通知集群中的各个<code>Proxy</code>节点。<code>Codis</code>创建了协程定时从<code>zookeeper</code>中读取迁移任务并执行。执行函数大体如下：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//单个slot的迁移
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//单个slot的迁移
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">t</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">MigrateTask</span>) <span style="color:#a6e22e">migrateSingleSlot</span>(<span style="color:#a6e22e">slotId</span> <span style="color:#66d9ef">int</span>, <span style="color:#a6e22e">to</span> <span style="color:#66d9ef">int</span>) <span style="color:#66d9ef">error</span> {
 
     <span style="color:#75715e">// .......
@@ -171,7 +171,7 @@
 
 </code></pre></div><h5 id="proxy处理状态迁移">Proxy处理状态迁移</h5>
 <p>状态迁移中，会重新建立slot与groupId, redis-server的连接关系。并且如果状态为<code>pre_migrate</code>， 会阻塞slot的所有操作，直到状态变为<code>migrate</code>。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//对于从zookeeper收到的状态变更处理函数
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//对于从zookeeper收到的状态变更处理函数
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Server</span>) <span style="color:#a6e22e">checkAndDoTopoChange</span>(<span style="color:#a6e22e">seq</span> <span style="color:#66d9ef">int</span>) <span style="color:#66d9ef">bool</span> {
    
     <span style="color:#75715e">// ........
@@ -219,7 +219,7 @@
 }
 </code></pre></div><h5 id="proxy处理客户端请求">Proxy处理客户端请求</h5>
 <p><code>客户端</code>的redis请求会通过<code>Proxy</code>的路由规则，转发给指定的slot处理。</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Slot</span>) <span style="color:#a6e22e">forward</span>(<span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Request</span>, <span style="color:#a6e22e">key</span> []<span style="color:#66d9ef">byte</span>) <span style="color:#66d9ef">error</span> {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Slot</span>) <span style="color:#a6e22e">forward</span>(<span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Request</span>, <span style="color:#a6e22e">key</span> []<span style="color:#66d9ef">byte</span>) <span style="color:#66d9ef">error</span> {
 	<span style="color:#75715e">//这里对于pre_migrate状态会阻塞，该slot中key的所有命令将不执行
 </span><span style="color:#75715e"></span>    <span style="color:#a6e22e">s</span>.<span style="color:#a6e22e">lock</span>.<span style="color:#a6e22e">RLock</span>()
     <span style="color:#75715e">/*
