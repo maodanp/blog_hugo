@@ -3,9 +3,10 @@ categories:
 - "技术志"
 tags:
 - "c++"
+- "design pattern"
 date: 2020-07-11
 title: "观察者模式中Subject在C++中的模板化"
-url: "/2021/01/18/cpp_observer_subject"
+url: "/2020/07/11/cpp_observer_subject"
 ---
 
 本篇将介绍观察者模式中 Subject 类在 C++ 中的模板化的实现。
@@ -21,7 +22,7 @@ url: "/2021/01/18/cpp_observer_subject"
 
 下面是观察者模式的类图：
 
-![pic](/pic/2020/2020-07-11-cpp-observer-subject.png)
+![pic](/pic/2020/2020-07-11-dp-observer.png)
 
 * `Subject`：抽象主题（抽象被观察者），抽象主题角色把所有观察者对象保存在一个集合里，每个主题都可以有任意数量的观察者，抽象主题提供一个或者多个接口，可以增加和删除观察者对象。
 * `ConcreteSubject`：具体主题（具体被观察者），该角色将有关状态存入具体观察者对象，在具体主题的内部状态发生改变时，给所有注册过的观察者发送通知。

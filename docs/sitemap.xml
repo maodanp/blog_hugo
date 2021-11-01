@@ -17,6 +17,9 @@
     <loc>https://maodanp.github.io/tags/c&#43;&#43;/</loc>
     <lastmod>2020-07-11T00:00:00+00:00</lastmod>
   </url><url>
+    <loc>https://maodanp.github.io/tags/design-pattern/</loc>
+    <lastmod>2020-07-11T00:00:00+00:00</lastmod>
+  </url><url>
     <loc>https://maodanp.github.io/post/</loc>
     <lastmod>2020-07-11T00:00:00+00:00</lastmod>
   </url><url>
@@ -26,8 +29,11 @@
     <loc>https://maodanp.github.io/categories/%E6%8A%80%E6%9C%AF%E5%BF%97/</loc>
     <lastmod>2020-07-11T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://maodanp.github.io/2021/01/18/cpp_observer_subject/</loc>
+    <loc>https://maodanp.github.io/2020/07/11/cpp_observer_subject/</loc>
     <lastmod>2020-07-11T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://maodanp.github.io/2020/07/01/template_strategy/</loc>
+    <lastmod>2020-07-01T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://maodanp.github.io/2020/06/20/cpp_auto_type/</loc>
     <lastmod>2020-06-20T00:00:00+00:00</lastmod>
