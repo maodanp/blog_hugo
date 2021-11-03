@@ -63,6 +63,15 @@
     </item>
     
     <item>
+      <title>Factory 工厂模式</title>
+      <link>https://maodanp.github.io/2020/01/18/factory_pattern/</link>
+      <pubDate>Sat, 18 Jan 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/01/18/factory_pattern/</guid>
+      <description>&lt;p&gt;本篇将介绍设计模式中的工厂模式，主要讲解简单工厂，工厂方法这两种设计模式。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>STL容器的区间成员函数</title>
       <link>https://maodanp.github.io/2020/01/10/stl-range-methods/</link>
       <pubDate>Fri, 10 Jan 2020 00:00:00 +0000</pubDate>
