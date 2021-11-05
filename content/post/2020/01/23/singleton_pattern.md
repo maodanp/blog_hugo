@@ -5,7 +5,7 @@ tags:
 - "c++"
 - "design pattern"
 date: 2020-01-23
-title: "C++ 关于单例模式实现"
+title: "C++ 关于单例模式的几种实现"
 url: "/2020/01/23/singleton_pattern"
 ---
 
