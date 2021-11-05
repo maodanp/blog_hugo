@@ -63,6 +63,15 @@
     </item>
     
     <item>
+      <title>C&#43;&#43; 关于单例模式实现</title>
+      <link>https://maodanp.github.io/2020/01/23/singleton_pattern/</link>
+      <pubDate>Thu, 23 Jan 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/01/23/singleton_pattern/</guid>
+      <description>&lt;p&gt;本篇将介绍关于单例模式的几种实现，并分析该模式存在的一些问题。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>Factory 工厂模式</title>
       <link>https://maodanp.github.io/2020/01/18/factory_pattern/</link>
       <pubDate>Sat, 18 Jan 2020 00:00:00 +0000</pubDate>
