@@ -16,6 +16,7 @@ Danping Mao 目前就职于 Cisco 中国
 
 ### 技能
 * 开发语言C/C++, GoLang； 脚本语言根据需要选择
+* 喜欢研究协议，例如[OAuth协议](http://www.rfcreader.com/#rfc6749),[KMS 协议](https://datatracker.ietf.org/doc/html/draft-abiggs-saag-key-management-service-02)
 * 热爱技术，对服务器性能、网络、分布式都有兴趣研究
 
 ### 联系方式：
