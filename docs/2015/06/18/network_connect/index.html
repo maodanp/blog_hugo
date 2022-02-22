@@ -117,7 +117,7 @@
 　　errno = 0;
      /*=========================================
       期望获得的错误(EINPROGRESS):
-           表示连接建立已经启动但尚未完成
+	       表示连接建立已经启动但尚未完成
       其他错误则返回给本函数的调用者
      =========================================*/
 　　if ( (n = connect(sockfd, saptr, salen)) &lt; 0)
@@ -131,13 +131,13 @@
 　　FD_ZERO(&amp;rset);
 　　FD_SET(sockfd, &amp;rset);
 　　wset = rset; 	
-        tval.tv_sec = nsec;
-        tval.tv_usec = 0;
+		tval.tv_sec = nsec;
+		tval.tv_usec = 0;
      /*=========================================
      如果nsec 为0，将使用缺省的超时时间，即其结构指针为 NULL
      如果select的返回值为0，则表示超时:
-        关闭套接字
-        返回ETIMEOUT错误给调用者
+		关闭套接字
+		返回ETIMEOUT错误给调用者
     =========================================*/
 　　if ((n = select(sockfd+1, &amp;rset, &amp;west, NULL,nsec ?tval:NULL)) == 0)
     {
@@ -148,13 +148,13 @@
     /*====================================================
      检查描述符的可读、可写
      需要getsockopt检查套接字上是否存在待处理错误，判断连接建立是否成功了:
-        因为套接字上发生错误时，它将由select标记为既可读又可写
+		因为套接字上发生错误时，它将由select标记为既可读又可写
      这里getsockopt存在移植性问题(以下代码兼容两种情况)：
-        Berkeley实现, getsockopt返回0，error中返回待处理错误
-        Solaris中getsockopt返回-1，error中返回待处理错误
+		Berkeley实现, getsockopt返回0，error中返回待处理错误
+		Solaris中getsockopt返回-1，error中返回待处理错误
     ====================================================*/
 　　if(FD_ISSET(sockfd, &amp;rset) || FD_ISSET(sockfd, &amp;west))
-        {
+		{
 
 　　	len = sizeof(error);
 　　	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &amp;error, &amp;len) &lt; 0)
@@ -246,7 +246,7 @@
 <hr>
 
 <footer class="container copy">
-    <p>&copy; 2021  Danping&#39;s blog </p>
+    <p>&copy; 2022  Danping&#39;s blog </p>
 	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
 </footer>
 

@@ -7,7 +7,16 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Sat, 11 Jul 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://maodanp.github.io/categories/%E6%8A%80%E6%9C%AF%E5%BF%97/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 22 Feb 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://maodanp.github.io/categories/%E6%8A%80%E6%9C%AF%E5%BF%97/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>基于云服务的 KMS 架构解读</title>
+      <link>https://maodanp.github.io/2022/02/22/key_management_service/</link>
+      <pubDate>Tue, 22 Feb 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2022/02/22/key_management_service/</guid>
+      <description>&lt;p&gt;本文主要介绍 Cisco System 使用的一种秘钥管理服务（Key Management Service）架构，该架构旨在标准化KMS 的服务协议，促进完善 KMS 服务提供商的生态系统， 目前该&lt;a href=&#34;https://datatracker.ietf.org/doc/html/draft-abiggs-saag-key-management-service-02&#34;&gt;架构&lt;/a&gt;还在草案阶段，未纳入 RFC 标准。&lt;/p&gt;</description>
+    </item>
+    
     <item>
       <title>观察者模式中Subject在C&#43;&#43;中的模板化</title>
       <link>https://maodanp.github.io/2020/07/11/cpp_observer_subject/</link>

@@ -304,7 +304,7 @@ Output:
 <p>Listing 1.8，同样的代码我们做了小小的修改，在15行中我们传递了变量<code>u</code>的值，而不是它的地址。 这个改变导致了<code>Unmarshal</code>函数返回了一个错误接口值，它实际存储的是<code>InvalidUnmarshalError</code>这个具体的指针类型。</p>
 <p>对于17-24行，我们进行了错误的处理：</p>
 <p><strong>Listing 1.9</strong></p>
-<pre><code>    17     switch e := err.(type) {
+<pre><code>	17     switch e := err.(type) {
 	18         case *json.UnmarshalTypeError:
 	19             log.Printf(&quot;UnmarshalTypeError: Value[%s] Type[%v]\n&quot;, e.Value, e.Type)
 	20         case *json.InvalidUnmarshalError:
@@ -383,7 +383,7 @@ Output:
 <hr>
 
 <footer class="container copy">
-    <p>&copy; 2021  Danping&#39;s blog </p>
+    <p>&copy; 2022  Danping&#39;s blog </p>
 	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
 </footer>
 

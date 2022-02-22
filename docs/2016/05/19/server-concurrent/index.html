@@ -161,11 +161,11 @@ while True:
 	int timeout = getNextTimedCallback();
 	int retval = epoll(fds, nfds, timeout);
 	if (retval &lt; 0) {
-        //处理错误，回调用户的error handler
+		//处理错误，回调用户的error handler
 	} else {
-        //处理到期的timers, 回调用户的timer handler
-        if（retval &gt; 0）{
-        //处理IO事件，回调用户的IO event handler
+		//处理到期的timers, 回调用户的timer handler
+		if（retval &gt; 0）{
+		//处理IO事件，回调用户的IO event handler
 	}
  } 
 }
@@ -250,7 +250,7 @@ while True:
 <hr>
 
 <footer class="container copy">
-    <p>&copy; 2021  Danping&#39;s blog </p>
+    <p>&copy; 2022  Danping&#39;s blog </p>
 	<p>Powered by <a href="https://gohugo.io" target="_blank">Hugo</a></p>
 </footer>
 
