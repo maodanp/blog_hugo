@@ -18,6 +18,15 @@
     </item>
     
     <item>
+      <title>SAML 标准协议解读</title>
+      <link>https://maodanp.github.io/2020/09/15/SAML/</link>
+      <pubDate>Tue, 15 Sep 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/09/15/SAML/</guid>
+      <description>&lt;p&gt;SAML（&lt;code&gt;Security Assertion Makrup Language&lt;/code&gt;）全称是&lt;code&gt;安全断言标记语言&lt;/code&gt;，是一种基于 XML 格式的开放标准的协议，用于在不同的安全域之间进行身份认证。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>观察者模式中Subject在C&#43;&#43;中的模板化</title>
       <link>https://maodanp.github.io/2020/07/11/cpp_observer_subject/</link>
       <pubDate>Sat, 11 Jul 2020 00:00:00 +0000</pubDate>
@@ -403,15 +412,6 @@
       
       <guid>https://maodanp.github.io/2016/03/15/using-pointers-in-go/</guid>
       <description>&lt;p&gt;以前在C/C++中，都知道传参时何时传值、指针、引用。那在Golang中的规则又是怎样的呢？对于参数传递是否有统一的规范呢？本文翻译自&lt;a href=&#34;https://www.goinggo.net/2014/12/using-pointers-in-go.html&#34;&gt;Using Pointers In *Go&lt;/a&gt;，作者总结出的方法一定让你受益匪浅。&lt;/p&gt;</description>
-    </item>
-    
-    <item>
-      <title>程序猿的自我修养 — 直面问题</title>
-      <link>https://maodanp.github.io/2016/03/10/face-problem/</link>
-      <pubDate>Thu, 10 Mar 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://maodanp.github.io/2016/03/10/face-problem/</guid>
-      <description>&lt;p&gt;程序员是与机器打交道的，机器识别的是二进制，不知道变通。所以，业务上任何逻辑、语法、性能等等问题都是家常便饭。问题可大可小，轻者内心嘀咕几句，自己debug；重者猛砸键盘鼠标，口爆粗语。&lt;/p&gt;</description>
     </item>
     
     <item>

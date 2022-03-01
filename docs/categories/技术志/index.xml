@@ -18,6 +18,15 @@
     </item>
     
     <item>
+      <title>SAML 标准协议解读</title>
+      <link>https://maodanp.github.io/2020/09/15/SAML/</link>
+      <pubDate>Tue, 15 Sep 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2020/09/15/SAML/</guid>
+      <description>&lt;p&gt;SAML（&lt;code&gt;Security Assertion Makrup Language&lt;/code&gt;）全称是&lt;code&gt;安全断言标记语言&lt;/code&gt;，是一种基于 XML 格式的开放标准的协议，用于在不同的安全域之间进行身份认证。&lt;/p&gt;</description>
+    </item>
+    
+    <item>
       <title>观察者模式中Subject在C&#43;&#43;中的模板化</title>
       <link>https://maodanp.github.io/2020/07/11/cpp_observer_subject/</link>
       <pubDate>Sat, 11 Jul 2020 00:00:00 +0000</pubDate>

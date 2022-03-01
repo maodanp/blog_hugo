@@ -54,14 +54,5 @@
       <description>&lt;p&gt;最近是迷上了印度电影，从早些的《三傻》，到《OMG》、《未知死亡》、《爱无止境》、《我的个神啊》&amp;hellip;看了很多。感觉阿三的电影都很有内涵，表达宗教与信仰、人性与冲突，穿插的歌曲也都与故事情节衔接的十分自然。&lt;/p&gt;</description>
     </item>
     
-    <item>
-      <title>程序猿的自我修养 — 直面问题</title>
-      <link>https://maodanp.github.io/2016/03/10/face-problem/</link>
-      <pubDate>Thu, 10 Mar 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://maodanp.github.io/2016/03/10/face-problem/</guid>
-      <description>&lt;p&gt;程序员是与机器打交道的，机器识别的是二进制，不知道变通。所以，业务上任何逻辑、语法、性能等等问题都是家常便饭。问题可大可小，轻者内心嘀咕几句，自己debug；重者猛砸键盘鼠标，口爆粗语。&lt;/p&gt;</description>
-    </item>
-    
   </channel>
 </rss>
