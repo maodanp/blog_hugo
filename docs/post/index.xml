@@ -7,7 +7,16 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright (c) 2018. All rights reserved.</copyright>
-    <lastBuildDate>Tue, 22 Feb 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://maodanp.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 09 Mar 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://maodanp.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>秘钥凭证 （Proof Key）在OAuth 客户端 Code Exchange 阶段的应用</title>
+      <link>https://maodanp.github.io/2022/03/09/PKCE/</link>
+      <pubDate>Wed, 09 Mar 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2022/03/09/PKCE/</guid>
+      <description>&lt;p&gt;基于授权码（&lt;code&gt;Authorization code grant&lt;/code&gt;）技术的 OAuth 2.0 客户端容易受到授权码被劫持（interception attack）的风险。本篇文章基于 &lt;a href=&#34;https://datatracker.ietf.org/doc/html/rfc7636&#34;&gt;RFC7636&lt;/a&gt; 主要介绍了OAuth 2.0 客户端在 &lt;code&gt;code exchange&lt;/code&gt; （Authz code exchange access token）阶段如何使用秘钥凭证来减缓这种攻击。&lt;/p&gt;</description>
+    </item>
+    
     <item>
       <title>基于云服务的 KMS 架构解读</title>
       <link>https://maodanp.github.io/2022/02/22/key_management_service/</link>

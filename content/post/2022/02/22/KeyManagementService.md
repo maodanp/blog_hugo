@@ -2,6 +2,7 @@
 categories:
 - "技术志"
 tags:
+- "Security"
 date: 2022-02-22
 title: "基于云服务的 KMS 架构解读"
 url: "/2022/02/22/key_management_service"

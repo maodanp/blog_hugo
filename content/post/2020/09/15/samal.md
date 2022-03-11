@@ -2,6 +2,7 @@
 categories:
 - "技术志"
 tags:
+- "Security"
 date: 2020-09-15
 title: "SAML 标准协议解读"
 url: "/2020/09/15/SAML"
