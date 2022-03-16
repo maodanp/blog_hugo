@@ -109,4 +109,4 @@ code_verifier == code_challenge
 
 ### 参考阅读
 
-[PKCE by OAuth Public Clients](
+[PKCE by OAuth Public Clients](https://datatracker.ietf.org/doc/html/rfc7636.html)
