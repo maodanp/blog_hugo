@@ -129,3 +129,4 @@ Server 也同样会发送 「`Change Cipher Spec`」和 「`Encrypted Handshake 
 ### 参考阅读
 
 [The Transport Layer Security (TLS) Protocol](https://www.rfc-editor.org/rfc/pdfrfc/rfc5246.txt.pdf)
+[图解计算机网络](https://www.cnblogs.com/xiaolincoding/p/14274353.html)
