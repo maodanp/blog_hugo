@@ -89,5 +89,14 @@
       <description>&lt;p&gt;STL 中容器的插入、删除、赋值都有相应的区间成员函数，相比于单元素的成员函数而言，使用区间成员函数使得代码更加清晰，更加高效。&lt;/p&gt;</description>
     </item>
     
+    <item>
+      <title>C&#43;&#43; 中基于谓词的 std::sort 介绍</title>
+      <link>https://maodanp.github.io/2019/07/05/std-sort-cpp/</link>
+      <pubDate>Fri, 05 Jul 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://maodanp.github.io/2019/07/05/std-sort-cpp/</guid>
+      <description>&lt;p&gt;数据结构于算法中有很多种不同的排序算法，在 C++ 语言中，常见的排序排序算法是 &lt;code&gt;std::sort&lt;/code&gt;, 本篇主要介绍基于谓词的 &lt;code&gt;std::sort&lt;/code&gt; 以及常见使用场景。&lt;/p&gt;</description>
+    </item>
+    
   </channel>
 </rss>
